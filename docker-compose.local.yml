@@ -1,0 +1,7 @@
+web:
+    build: ./sources
+    container_name: web_local
+    volumes:
+        - './sources:/usr/src/app'
+    environment:
+        ENV: 'local'
