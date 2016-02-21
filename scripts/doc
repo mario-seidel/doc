@@ -72,9 +72,12 @@ buildandtag() {
 }
 
 build() {
-	if [ "$1" != '']; then
-		docker build -t "$1" "$SOURCE_DIR"
+	if [ -z $1 ]; then
+        errout "no image name given"
+        exit 1    
 	fi
+    docker-compose -f $DOCKER_COMPOSE_FILE -f $DOCKER_COMPOSE_LOCAL_FILE build
+#    docker build --no-cache -t "$1" "$SOURCE_DIR"
 }
 
 dockerup() {
