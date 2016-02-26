@@ -1,1 +1,4 @@
 *~
+.idea
+/sources/*
+/docker-compose*.yml
