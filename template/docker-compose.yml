@@ -1,0 +1,27 @@
+version: '2'
+services:
+    web:
+        image: [repohost]/[username]/[projectname]:1.0
+        container_name: [projectname]_web
+        ports:
+            - "8080:80"
+        links:
+            - typo3-db
+        volumes:
+            - logvolume01:/var/log
+        environment:
+            DMK_APP_ENV: 'PRODUCTION'
+    typo3-db:
+        image: mariadb:latest
+        container_name: [projectname]_db
+        environment:
+            MYSQL_ROOT_PASSWORD: 'yoursupersecretpassword'
+            MYSQL_USER: 'typo3'
+            MYSQL_PASSWORD: 'yourothersupersecretpassword'
+            MYSQL_DATABASE: 'typo3'
+        volumes:
+            - /var/lib/mysql
+
+volumes:
+  logvolume01: {}
+

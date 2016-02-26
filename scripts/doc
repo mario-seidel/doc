@@ -2,13 +2,17 @@
 
 # doc - Docker Operation Control
 
-VERSION=0.1
+VERSION=0.2
 DOCKER_COMPOSE_LOCAL_FILE="docker-compose.local.yml"
 DOCKER_COMPOSE_TEST_FILE="docker-compose.test.yml"
 DOCKER_COMPOSE_BETA_FILE="docker-compose.beta.yml"
+DOCKER_COMPOSE_PROD_FILE="docker-compose.prod.yml"
 DOCKER_COMPOSE_FILE="docker-compose.yml"
+DOC_DOCKERFILE_INSTALL="./dockerfiles/Dockerfile-install"
 DOCKER_REPO="pluto:5000"
 SOURCE_DIR="./sources"
+
+set -e
 
 showhelp() {
 	out ""
@@ -19,6 +23,7 @@ showhelp() {
 	out "\tbnt \t - build and tag an image"
 	out "\tup \t - run docker-compose with given environment [local, prod]"
 	out "\tdeploy \t - build, tag and deploy to remote repo"
+	out "\tinitproject \t - initialize a new project"
 	out ""
 }
 
@@ -27,23 +32,15 @@ dockerdeploy() {
     IMAGE_NAME="$1"
 	CUR_VERSION=$(get_current_version $IMAGE_NAME)
 
-	if [ "$CUR_VERSION" == '' ]; then
+	if [ -z "$CUR_VERSION" ]; then
 		errout "image \"$1\" wurde nicht gefunden"
 		exit 1;
 	fi
 
-	#new incremented version
-	NEW_VERSION=$(buildandtag $IMAGE_NAME $CUR_VERSION);
-	NEW_IMAGE_NAME="$IMAGE_NAME:$NEW_VERSION";
-
-    out "Deploying image $NEW_IMAGE_NAME to $DOCKER_REPO...\n"
+	info "Deploying image $IMAGE_NAME with version $CUR_VERSION to $DOCKER_REPO...\n"
 
 	#push image to remote docker repo
-    docker -D -l=debug push "$DOCKER_REPO/$NEW_IMAGE_NAME" &&
-
-	#TODO: increment version in file if push successfull
-	sed -i "s|\(.*image:\s*$IMAGE_NAME:\)$CUR_VERSION|\1$NEW_VERSION|g" "$DOCKER_COMPOSE_FILE"
-	out "new version build: $(get_current_version $IMAGE_NAME)"
+	docker -D -l=debug push "$DOCKER_REPO/$IMAGE_NAME"
 }
 
 get_current_version() {
@@ -51,32 +48,36 @@ get_current_version() {
 		errout "missing image name"
 		exit 1;
 	fi
-	echo $(sed -n "s|.*image:\s*$1:\(.*\)$|\1|p" "$DOCKER_COMPOSE_FILE")
+	echo $(sed -n "s|.*image:\s*($DOCKER_REPO/)?$1:\(.*\)$|\1|p" "$DOCKER_COMPOSE_FILE")
 }
 
 buildandtag() {
 	IMAGE_NAME=$1
 	CUR_VERSION=$2
+
+	if [ -z "$2" ]; then
+		CUR_VERSION=$(get_current_version $IMAGE_NAME)
+	fi
 	
 	NEW_VERSION=$(increment_version $CUR_VERSION)
 	NEW_IMAGE_NAME="$IMAGE_NAME:$NEW_VERSION"
+
+	info "current version is $CUR_VERSION"
 	#name and build image in SOURCE_DIR and tag builded image
-	docker build -t "$NEW_IMAGE_NAME" "$SOURCE_DIR" >&2 &&
-    docker tag "$NEW_IMAGE_NAME" "$DOCKER_REPO/$NEW_IMAGE_NAME" >&2
+	#use no cache, we want all to be fresh when deploying
+	docker build -t $NEW_IMAGE_NAME -f dockerfiles/Dockerfile-prod --no-cache . >&2 &&
+	docker tag "$NEW_IMAGE_NAME" "$DOCKER_REPO/$NEW_IMAGE_NAME" >&2
 
 	if [ $? -eq 0 ]; then
-		echo $NEW_VERSION;
+		sed -i "s|\(.*image:\s*$DOCKER_REPO/$IMAGE_NAME:\)$CUR_VERSION|\1$NEW_VERSION|g" "$DOCKER_COMPOSE_FILE"
+		info "new version build: $(get_current_version $IMAGE_NAME)"
 	else
 		exit 1;
 	fi
 }
 
 build() {
-	if [ -z $1 ]; then
-        errout "no image name given"
-        exit 1    
-	fi
-    docker-compose -f $DOCKER_COMPOSE_FILE -f $DOCKER_COMPOSE_LOCAL_FILE build
+	docker-compose -f $DOCKER_COMPOSE_FILE -f $DOCKER_COMPOSE_LOCAL_FILE build
 #    docker build --no-cache -t "$1" "$SOURCE_DIR"
 }
 
@@ -86,15 +87,68 @@ dockerup() {
 			if [ ! -f "$DOCKER_COMPOSE_LOCAL_FILE" ]; then
 				errout "no configuration file found in current dir ($DOCKER_COMPOSE_LOCAL_FILE)"
 			fi
-			docker-compose -f docker-compose.yml -f docker-compose.local.yml up
+			docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" up
 		;;
 		"prod") out "building for prod";
-            docker-compose up
-        ;;
+			docker-compose up
+			;;
 		"whats") showhelp ;;
 		*) out "wrong env"; exit 1; ;;
 	esac
 }
+
+initproject() {
+	DOC_PROJECT_NAME=$1
+	DOC_FULL_NAME="$DOC_USERNAME/$DOC_PROJECT_NAME"
+
+	if [ -e ./config/settings.sh ]; then
+		rm -f ./config/settings.sh
+	fi
+	touch ./config/settings.sh
+	echo "DOC_USERNAME=\"$DOC_USERNAME\"" >> ./config/settings.sh
+	echo "DOC_FULL_NAME=\"$DOC_FULL_NAME\"" >> ./config/settings.sh
+	echo "DOC_PROJECT_NAME=\"$DOC_PROJECT_NAME\"" >> ./config/settings.sh
+
+	if [ -z "$DOC_PROJECT_NAME" ]; then
+		errout "no project name given"
+		exit 1
+	fi
+	
+	if [ -z "$DOC_USERNAME" ]; then
+		errout "please set a username or company name in DOC_USERNAME"
+		exit 1
+	fi
+	
+	info "init project \"$DOC_FULL_NAME\""
+	cp ./template/docker-compose* .
+	
+	for file in "$DOCKER_COMPOSE_FILE" "$DOCKER_COMPOSE_LOCAL_FILE" \
+		"$DOCKER_COMPOSE_TEST_FILE" "$DOCKER_COMPOSE_BETA_FILE" \
+		"$DOCKER_COMPOSE_PROD_FILE" "$DOC_DOCKERFILE_INSTALL"; do
+		if [ -w "$file" ]; then
+			sed -i "s|\[projectname\]|$DOC_PROJECT_NAME|g" "$file"
+			sed -i "s|\[username\]|$DOC_USERNAME|g" "$file"
+			sed -i "s|\[repohost\]|$DOCKER_REPO|g" "$file"
+		else
+			warnout "file "$file" is missing"
+		fi
+	done
+
+	#initialize all deps before start building
+	info "run init.sh"
+	scripts/init.sh
+
+	info "start building project"
+	build "$DOC_USERNAME/$DOC_PROJECT_NAME" &&
+    info "===========\n$DOC_FULL_NAME was built successfully\n\n"
+}
+
+dockerin() {
+	WEB_CONTAINER=$(docker ps -f name=_web -q -l)
+	info $(docker inspect --format 'Name: {{.Name}} erstellt: {{.Created}}' "$WEB_CONTAINER")
+	docker exec -ti "$WEB_CONTAINER" bash
+}
+
 
 ### Helper Methods
 
@@ -113,22 +167,35 @@ increment_version (){
   echo -e "${new// /.}"
 } 
 
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+ORANGE='\033[0;33m'
+NC='\033[0m' # No Color
+	
 out() {
 	echo -e "$@"
 }
 
+info() {
+	out "${YELLOW}$@${NC}"
+}
+
 errout() {
-	echo -e "[ERROR]: $@"
+	echo -e "${RED}[ERROR]: $@${NC}"
 	exit 1;
 }
 
+warnout() {
+	echo -e "${ORANGE}[WARNING]: $@${NC}"
+}
 
 ### Main
 case "$1" in
-	"build") out "building image $2"; build "$2" ;;
-	"bnt") out "build and tag"; buildandtag $2 $(get_current_version $2) ;;
-	"up") out "docker up"; dockerup $2 ;;
-    "deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
+	"build") out "building image"; build ;;
+	"tag") out "build and tag"; buildandtag $2 $(get_current_version $2) ;;
+	"up") out "docker up"; dockerup "$2" ;;
+	"in") out "try to find a container and start a bash..."; dockerin ;;
+	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
+	"initproject") initproject "$2" ;;
 	*)   out "Unknown parameter"; showhelp; ;;
 esac
-

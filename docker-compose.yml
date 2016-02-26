@@ -1,7 +1,0 @@
-web:
-    image: [username]/[project]:1.0
-    container_name: [project]_web
-    ports:
-        - "8080:3000"
-    environment:
-        ENV: 'live'
