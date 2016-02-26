@@ -9,12 +9,13 @@ publishing the image to a production server. First we have to initialize the
 project by simple typing
 
 ```export DOC_USERNAME=myusername```
+
 ```doc initproject mytypo3```
 
 This will build all needed images and you will be on a system where the
 development can be started immediately after the TYPO3 installation is finished.
 
-When building is finisht you will got 2 images:
+When the built is finished you will get 2 images:
 - myusername/mytypo3:1.0
 - myusername/typo:7.6
 
