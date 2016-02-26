@@ -1,4 +1,5 @@
 *~
 .idea
 /sources/*
+!/sources/.gitkeep
 /docker-compose*.yml
