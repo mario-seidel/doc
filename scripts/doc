@@ -14,7 +14,6 @@ DOCKER_COMPOSE_FILE="docker-compose.yml"
 DOC_DOCKERFILE_INSTALL="./dockerfiles/Dockerfile-install"
 DOC_DOCKERFILE_PROD="./dockerfiles/Dockerfile-prod"
 DOC_SETTINGS="./config/settings.sh"
-DOC_REPO="pluto:5000"
 SOURCE_DIR="./sources"
 
 
@@ -104,16 +103,7 @@ dockerup() {
 
 initproject() {
 	DOC_PROJECT_NAME=$1
-	DOC_FULL_NAME="$DOC_USERNAME/$DOC_PROJECT_NAME"
-
-	if [ -e "$DOC_SETTINGS" ]; then
-		rm -f "$DOC_SETTINGS"
-	fi
-	touch "$DOC_SETTINGS"
-	echo "DOC_USERNAME=\"$DOC_USERNAME\"" >> "$DOC_SETTINGS"
-	echo "DOC_FULL_NAME=\"$DOC_FULL_NAME\"" >> "$DOC_SETTINGS"
-	echo "DOC_PROJECT_NAME=\"$DOC_PROJECT_NAME\"" >> "$DOC_SETTINGS"
-	echo "DOC_REPO=\"$DOC_REPO\"" >> "$DOC_SETTINGS"
+	initsettings "$DOC_PROJECT_NAME"
 
 	if [ -z "$DOC_PROJECT_NAME" ]; then
 		errout "no project name given"
@@ -127,7 +117,8 @@ initproject() {
 	
 	info "init project \"$DOC_FULL_NAME\""
 	cp ./template/docker-compose* .
-	
+	cp ./template/Dockerfile* dockerfiles/
+
 	for file in "$DOCKER_COMPOSE_FILE" "$DOCKER_COMPOSE_LOCAL_FILE" \
 		"$DOCKER_COMPOSE_TEST_FILE" "$DOCKER_COMPOSE_BETA_FILE" \
 		"$DOCKER_COMPOSE_PROD_FILE" "$DOC_DOCKERFILE_INSTALL" \
@@ -150,6 +141,44 @@ initproject() {
 	info "start building project"
 	build "$DOC_USERNAME/$DOC_PROJECT_NAME" &&
     info "===========\n$DOC_FULL_NAME was built successfully\n\n"
+}
+
+initsettings() {
+	if [ ! -f "$DOC_SETTINGS" ]; then
+		touch "$DOC_SETTINGS"
+	fi
+	source "$DOC_SETTINGS"
+
+	DOC_PROJECT_NAME="$1"
+
+	if [ -z "$DOC_REPO" ]; then
+		while [ -z "$DOC_REPO" ]; do
+			ask "docker regestry server (repo.domain.de:5000)? [DOC_REPO]"
+			read DOC_REPO
+		done
+		echo "DOC_REPO=\"$DOC_REPO\"" >> "$DOC_SETTINGS"
+	fi
+
+	if [ -z "$DOC_USERNAME" ]; then
+		while [ -z "$DOC_USERNAME" ]; do
+			ask "user / company name? [DOC_USERNAME]"
+			read DOC_USERNAME
+		done
+		echo "DOC_USERNAME=\"$DOC_USERNAME\"" >> "$DOC_SETTINGS"
+	fi
+
+	if [ -z "$DOC_PROJECT_NAME" ] || [ -z "$DOC_FULL_NAME" ]; then
+		while [ -z "DOC_PROJECT_NAME" ]; do
+			ask "project name? [DOC_PROJECT_NAME]"
+			read DOC_PROJECT_NAME
+		done
+		echo "DOC_PROJECT_NAME=\"$DOC_PROJECT_NAME\"" >> "$DOC_SETTINGS"
+		DOC_FULL_NAME="$DOC_USERNAME/$DOC_PROJECT_NAME"
+		echo "DOC_FULL_NAME=\"$DOC_FULL_NAME\"" >> "$DOC_SETTINGS"
+	fi
+
+	source "$DOC_SETTINGS"
+	export DOC_SETTINGS
 }
 
 dockerin() {
@@ -198,7 +227,11 @@ warnout() {
 	echo -e "${ORANGE}[WARNING]: $@${NC}"
 }
 
-if [ -e "$DOC_SETTINGS" ]; then
+ask() {
+	echo -n -e "${YELLOW}$@${NC} "
+}
+
+if [ -f "$DOC_SETTINGS" ]; then
     source "$DOC_SETTINGS"
     export DOC_SETTINGS
 fi

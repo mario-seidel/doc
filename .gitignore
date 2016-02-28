@@ -3,3 +3,5 @@
 /sources/*
 !/sources/.gitkeep
 /docker-compose*.yml
+/config/settings.sh
+/dockerfiles/*

@@ -1,4 +1,4 @@
-FROM pluto:5000/grisuu/typo3base:7.6
+FROM [repohost]/[username]/typo3base:7.6
 
 
 COPY ./sources /var/www/html
