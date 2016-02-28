@@ -1,18 +1,16 @@
-FROM grisuu/typo3base:7.6
+FROM pluto:5000/grisuu/typo3base:7.6
 
-#USER www-data
 
 COPY ./sources /var/www/html
 COPY ./scripts/entrypoint.sh /
 
-#noetig um Probleme mit de, owner des Hostsystems zu umgehen. TODO: uid des Hostsystems als ARG uebergeben
-#RUN usermod -u $user_id www-data && groupmod -g $group_id www-data
-#RUN chown -R www-data:www-data /var/www
-
 WORKDIR /var/www/html
 
 #run composer to build new TYPO3 project
-RUN composer.phar update --prefer-stable --prefer-source && touch FIRST_INSTALL
-CMD ["/entrypoint.sh"]
+#RUN composer.phar update --prefer-stable --prefer-source && touch FIRST_INSTALL
 
-#CMD [ "composer.phar", "diagnose" ]
+#problems with local mounted volumes and user rights
+#RUN chown -R www-data:www-data /var/www
+#USER www-data
+
+CMD ["/entrypoint.sh"]
