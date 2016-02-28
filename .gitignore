@@ -5,3 +5,4 @@
 /docker-compose*.yml
 /config/settings.sh
 /dockerfiles/*
+!/dockerfiles/.gitkeep
