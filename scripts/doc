@@ -1,6 +1,9 @@
 #!/bin/bash
+set -e
 
+###
 # doc - Docker Operation Control
+###
 
 VERSION=0.2
 DOCKER_COMPOSE_LOCAL_FILE="docker-compose.local.yml"
@@ -9,21 +12,23 @@ DOCKER_COMPOSE_BETA_FILE="docker-compose.beta.yml"
 DOCKER_COMPOSE_PROD_FILE="docker-compose.prod.yml"
 DOCKER_COMPOSE_FILE="docker-compose.yml"
 DOC_DOCKERFILE_INSTALL="./dockerfiles/Dockerfile-install"
-DOCKER_REPO="pluto:5000"
+DOC_DOCKERFILE_PROD="./dockerfiles/Dockerfile-prod"
+DOC_SETTINGS="./config/settings.sh"
+DOC_REPO="pluto:5000"
 SOURCE_DIR="./sources"
 
-set -e
 
 showhelp() {
 	out ""
 	out "doc $VERSION"
 	out "========================================"
 	out "Commands:"
-	out "\tbuild \t - building an image"
-	out "\tbnt \t - build and tag an image"
-	out "\tup \t - run docker-compose with given environment [local, prod]"
-	out "\tdeploy \t - build, tag and deploy to remote repo"
-	out "\tinitproject \t - initialize a new project"
+	out "build \t\t - building an image"
+	out "bnt \t\t - build and tag an image"
+	out "up \t\t - run docker-compose with given environment [local, prod]"
+	out "in \t\t - search for running web container and open a shell in it"
+	out "deploy \t\t - build, tag and deploy to remote repo"
+	out "initproject \t - initialize a new project"
 	out ""
 }
 
@@ -37,10 +42,10 @@ dockerdeploy() {
 		exit 1;
 	fi
 
-	info "Deploying image $IMAGE_NAME with version $CUR_VERSION to $DOCKER_REPO...\n"
+	info "Deploying image $IMAGE_NAME with version $CUR_VERSION to $DOC_REPO...\n"
 
 	#push image to remote docker repo
-	docker -D -l=debug push "$DOCKER_REPO/$IMAGE_NAME"
+	docker -D -l=debug push "$DOC_REPO/$IMAGE_NAME"
 }
 
 get_current_version() {
@@ -48,7 +53,7 @@ get_current_version() {
 		errout "missing image name"
 		exit 1;
 	fi
-	echo $(sed -n "s|.*image:\s*($DOCKER_REPO/)?$1:\(.*\)$|\1|p" "$DOCKER_COMPOSE_FILE")
+	echo $(sed -n "s|.*image:\s*($DOC_REPO/)?$1:\(.*\)$|\1|p" "$DOCKER_COMPOSE_FILE")
 }
 
 buildandtag() {
@@ -66,10 +71,10 @@ buildandtag() {
 	#name and build image in SOURCE_DIR and tag builded image
 	#use no cache, we want all to be fresh when deploying
 	docker build -t $NEW_IMAGE_NAME -f dockerfiles/Dockerfile-prod --no-cache . >&2 &&
-	docker tag "$NEW_IMAGE_NAME" "$DOCKER_REPO/$NEW_IMAGE_NAME" >&2
+	docker tag "$NEW_IMAGE_NAME" "$DOC_REPO/$NEW_IMAGE_NAME" >&2
 
 	if [ $? -eq 0 ]; then
-		sed -i "s|\(.*image:\s*$DOCKER_REPO/$IMAGE_NAME:\)$CUR_VERSION|\1$NEW_VERSION|g" "$DOCKER_COMPOSE_FILE"
+		sed -i "s|\(.*image:\s*$DOC_REPO/$IMAGE_NAME:\)$CUR_VERSION|\1$NEW_VERSION|g" "$DOCKER_COMPOSE_FILE"
 		info "new version build: $(get_current_version $IMAGE_NAME)"
 	else
 		exit 1;
@@ -101,13 +106,14 @@ initproject() {
 	DOC_PROJECT_NAME=$1
 	DOC_FULL_NAME="$DOC_USERNAME/$DOC_PROJECT_NAME"
 
-	if [ -e ./config/settings.sh ]; then
-		rm -f ./config/settings.sh
+	if [ -e "$DOC_SETTINGS" ]; then
+		rm -f "$DOC_SETTINGS"
 	fi
-	touch ./config/settings.sh
-	echo "DOC_USERNAME=\"$DOC_USERNAME\"" >> ./config/settings.sh
-	echo "DOC_FULL_NAME=\"$DOC_FULL_NAME\"" >> ./config/settings.sh
-	echo "DOC_PROJECT_NAME=\"$DOC_PROJECT_NAME\"" >> ./config/settings.sh
+	touch "$DOC_SETTINGS"
+	echo "DOC_USERNAME=\"$DOC_USERNAME\"" >> "$DOC_SETTINGS"
+	echo "DOC_FULL_NAME=\"$DOC_FULL_NAME\"" >> "$DOC_SETTINGS"
+	echo "DOC_PROJECT_NAME=\"$DOC_PROJECT_NAME\"" >> "$DOC_SETTINGS"
+	echo "DOC_REPO=\"$DOC_REPO\"" >> "$DOC_SETTINGS"
 
 	if [ -z "$DOC_PROJECT_NAME" ]; then
 		errout "no project name given"
@@ -124,19 +130,22 @@ initproject() {
 	
 	for file in "$DOCKER_COMPOSE_FILE" "$DOCKER_COMPOSE_LOCAL_FILE" \
 		"$DOCKER_COMPOSE_TEST_FILE" "$DOCKER_COMPOSE_BETA_FILE" \
-		"$DOCKER_COMPOSE_PROD_FILE" "$DOC_DOCKERFILE_INSTALL"; do
+		"$DOCKER_COMPOSE_PROD_FILE" "$DOC_DOCKERFILE_INSTALL" \
+		"$DOC_DOCKERFILE_PROD"; do
 		if [ -w "$file" ]; then
 			sed -i "s|\[projectname\]|$DOC_PROJECT_NAME|g" "$file"
 			sed -i "s|\[username\]|$DOC_USERNAME|g" "$file"
-			sed -i "s|\[repohost\]|$DOCKER_REPO|g" "$file"
+			sed -i "s|\[repohost\]|$DOC_REPO|g" "$file"
 		else
 			warnout "file "$file" is missing"
 		fi
 	done
 
 	#initialize all deps before start building
-	info "run init.sh"
-	scripts/init.sh
+	if [ -f "scripts/init.sh" ]; then
+	    info "run init.sh"
+	    scripts/init.sh
+	fi
 
 	info "start building project"
 	build "$DOC_USERNAME/$DOC_PROJECT_NAME" &&
@@ -188,6 +197,11 @@ errout() {
 warnout() {
 	echo -e "${ORANGE}[WARNING]: $@${NC}"
 }
+
+if [ -e "$DOC_SETTINGS" ]; then
+    source "$DOC_SETTINGS"
+    export DOC_SETTINGS
+fi
 
 ### Main
 case "$1" in
