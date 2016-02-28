@@ -17,7 +17,7 @@ services:
         environment:
             MYSQL_ROOT_PASSWORD: 'yoursupersecretpassword'
             MYSQL_USER: 'typo3'
-            MYSQL_PASSWORD: 'yourothersupersecretpassword'
+            MYSQL_PASSWORD: 'typo3'
             MYSQL_DATABASE: 'typo3'
         volumes:
             - /var/lib/mysql

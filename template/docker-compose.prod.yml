@@ -5,16 +5,8 @@ services:
             context: .
             dockerfile: dockerfiles/Dockerfile-prod
         container_name: [projectname]_web_prod
-        environment:
-            DMK_APP_ENV: 'PRODUCTION'
         volumes:
             - /var/www/html/typo3conf
-    typo3-db:
-        image: mariadb:latest
-        container_name: [projectname]_db
         environment:
-            MYSQL_ROOT_PASSWORD: 'yoursupersecretpassword'
-            MYSQL_USER: 'typo3'
-            MYSQL_PASSWORD: 'yourothersupersecretpassword'
-            MYSQL_DATABASE: 'typo3'
+            DMK_APP_ENV: 'PRODUCTION'
             
