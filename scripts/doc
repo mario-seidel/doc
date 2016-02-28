@@ -37,7 +37,7 @@ dockerdeploy() {
 	CUR_VERSION=$(get_current_version $IMAGE_NAME)
 
 	if [ -z "$CUR_VERSION" ]; then
-		errout "image \"$1\" wurde nicht gefunden"
+		errout "eighter current version or image could not be determined"
 		exit 1;
 	fi
 
@@ -52,7 +52,7 @@ get_current_version() {
 		errout "missing image name"
 		exit 1;
 	fi
-	echo $(sed -n "s|.*image:\s*($DOC_REPO/)?$1:\(.*\)$|\1|p" "$DOCKER_COMPOSE_FILE")
+	echo  $(sed -n "s|.*image:\s*\($DOC_REPO/\)\?$1:\(.*\)$|\2|p" "$DOCKER_COMPOSE_FILE")
 }
 
 buildandtag() {
@@ -62,11 +62,17 @@ buildandtag() {
 	if [ -z "$2" ]; then
 		CUR_VERSION=$(get_current_version $IMAGE_NAME)
 	fi
-	
+
+	if [ -z "$CUR_VERSION" ]; then
+		errout "current version could not be determined fo $IMAGE_NAME"
+		exit 1;
+	fi
+
+	info "current version is $CUR_VERSION"
+
 	NEW_VERSION=$(increment_version $CUR_VERSION)
 	NEW_IMAGE_NAME="$IMAGE_NAME:$NEW_VERSION"
 
-	info "current version is $CUR_VERSION"
 	#name and build image in SOURCE_DIR and tag builded image
 	#use no cache, we want all to be fresh when deploying
 	docker build -t $NEW_IMAGE_NAME -f dockerfiles/Dockerfile-prod --no-cache . >&2 &&
