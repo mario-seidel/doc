@@ -71,12 +71,12 @@ buildandtag() {
 	info "current version is $CUR_VERSION"
 
 	NEW_VERSION=$(increment_version $CUR_VERSION)
-	NEW_IMAGE_NAME="$IMAGE_NAME:$NEW_VERSION"
+	NEW_IMAGE_NAME="$DOC_REPO/$IMAGE_NAME:$NEW_VERSION"
 
 	#name and build image in SOURCE_DIR and tag builded image
 	#use no cache, we want all to be fresh when deploying
 	docker build -t $NEW_IMAGE_NAME -f dockerfiles/Dockerfile-prod --no-cache . >&2 &&
-	docker tag "$NEW_IMAGE_NAME" "$DOC_REPO/$NEW_IMAGE_NAME" >&2
+#	docker tag "$NEW_IMAGE_NAME" "$DOC_REPO/$NEW_IMAGE_NAME" >&2
 
 	if [ $? -eq 0 ]; then
 		sed -i "s|\(.*image:\s*$DOC_REPO/$IMAGE_NAME:\)$CUR_VERSION|\1$NEW_VERSION|g" "$DOCKER_COMPOSE_FILE"
@@ -133,6 +133,7 @@ initproject() {
 			sed -i "s|\[projectname\]|$DOC_PROJECT_NAME|g" "$file"
 			sed -i "s|\[username\]|$DOC_USERNAME|g" "$file"
 			sed -i "s|\[repohost\]|$DOC_REPO|g" "$file"
+			sed -i "s|\[github_oauth\]|$DOC_GITHUB_OAUTH|g" "$file"
 		else
 			warnout "file "$file" is missing"
 		fi
@@ -145,7 +146,7 @@ initproject() {
 	fi
 
 	info "start building project"
-	build "$DOC_USERNAME/$DOC_PROJECT_NAME" &&
+	dockerup local &&
     info "===========\n$DOC_FULL_NAME was built successfully\n\n"
 }
 
@@ -181,6 +182,14 @@ initsettings() {
 		echo "DOC_PROJECT_NAME=\"$DOC_PROJECT_NAME\"" >> "$DOC_SETTINGS"
 		DOC_FULL_NAME="$DOC_USERNAME/$DOC_PROJECT_NAME"
 		echo "DOC_FULL_NAME=\"$DOC_FULL_NAME\"" >> "$DOC_SETTINGS"
+	fi
+
+	if [ -z "$DOC_GITHUB_OAUTH" ]; then
+		while [ -z "$DOC_GITHUB_OAUTH" ]; do
+			ask "github oauth token? [DOC_GITHUB_OAUTH]"
+			read DOC_GITHUB_OAUTH
+		done
+		echo "DOC_GITHUB_OAUTH=\"$DOC_GITHUB_OAUTH\"" >> "$DOC_SETTINGS"
 	fi
 
 	source "$DOC_SETTINGS"

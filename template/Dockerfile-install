@@ -6,6 +6,9 @@ COPY ./scripts/entrypoint.sh /
 
 WORKDIR /var/www/html
 
+#set oauth token for github
+RUN composer.phar config -g github-oauth.github.com $github_oauth;
+
 #run composer to build new TYPO3 project
 #RUN composer.phar update --prefer-stable --prefer-source && touch FIRST_INSTALL
 
