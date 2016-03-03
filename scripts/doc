@@ -5,7 +5,7 @@ set -e
 # doc - Docker Operation Control
 ###
 
-VERSION=0.2
+VERSION=0.3
 DOCKER_COMPOSE_LOCAL_FILE="docker-compose.local.yml"
 DOCKER_COMPOSE_TEST_FILE="docker-compose.test.yml"
 DOCKER_COMPOSE_BETA_FILE="docker-compose.beta.yml"
@@ -23,8 +23,9 @@ showhelp() {
 	out "========================================"
 	out "Commands:"
 	out "build \t\t - building an image"
-	out "bnt \t\t - build and tag an image"
+	out "tag \t\t - build and tag an image"
 	out "up \t\t - run docker-compose with given environment [local, prod]"
+	out "down \t\t - stops all containers an rm them"
 	out "in \t\t - search for running web container and open a shell in it"
 	out "deploy \t\t - build, tag and deploy to remote repo"
 	out "initproject \t - initialize a new project"
@@ -37,7 +38,7 @@ dockerdeploy() {
 	CUR_VERSION=$(get_current_version $IMAGE_NAME)
 
 	if [ -z "$CUR_VERSION" ]; then
-		errout "eighter current version or image could not be determined"
+		errout "either current version or image could not be determined"
 		exit 1;
 	fi
 
@@ -75,7 +76,7 @@ buildandtag() {
 
 	#name and build image in SOURCE_DIR and tag builded image
 	#use no cache, we want all to be fresh when deploying
-	docker build -t $NEW_IMAGE_NAME -f dockerfiles/Dockerfile-prod --no-cache . >&2 &&
+	docker build -t $NEW_IMAGE_NAME -f "$DOC_DOCKERFILE_PROD" --no-cache . >&2 &&
 #	docker tag "$NEW_IMAGE_NAME" "$DOC_REPO/$NEW_IMAGE_NAME" >&2
 
 	if [ $? -eq 0 ]; then
@@ -105,6 +106,11 @@ dockerup() {
 		"whats") showhelp ;;
 		*) out "wrong env"; exit 1; ;;
 	esac
+}
+
+dockerdown() {
+    out "Stopping all containers"
+    docker-compose down $@
 }
 
 initproject() {
@@ -256,6 +262,7 @@ case "$1" in
 	"build") out "building image"; build ;;
 	"tag") out "build and tag"; buildandtag $2 $(get_current_version $2) ;;
 	"up") out "docker up"; dockerup "$2" ;;
+	"down") out "docker down"; shift; dockerdown $@ ;;
 	"in") out "try to find a container and start a bash..."; dockerin ;;
 	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
 	"initproject") initproject "$2" ;;
