@@ -25,7 +25,8 @@ showhelp() {
 	out "build \t\t - building an image"
 	out "tag \t\t - build and tag an image"
 	out "up \t\t - run docker-compose with given environment [local, prod]"
-	out "down \t\t - stops all containers an rm them"
+	out "down \t\t - stop all containers an remove them"
+	out "stop \t\t - stop all containers"
 	out "in \t\t - search for running web container and open a shell in it"
 	out "deploy \t\t - build, tag and deploy to remote repo"
 	out "initproject \t - initialize a new project"
@@ -109,12 +110,18 @@ dockerup() {
 }
 
 dockerdown() {
-    out "Stopping all containers"
+    out "Stopping and remove all containers"
     docker-compose down $@
+}
+
+dockerstop() {
+    out "Stopping all containers"
+    docker-compose stop $@
 }
 
 initproject() {
 	DOC_PROJECT_NAME=$1
+	GIT_REPO=$2
 	initsettings "$DOC_PROJECT_NAME"
 
 	if [ -z "$DOC_PROJECT_NAME" ]; then
@@ -150,7 +157,7 @@ initproject() {
 	#initialize all deps before start building
 	if [ -f "scripts/init.sh" ]; then
 	    info "run init.sh"
-	    scripts/init.sh
+	    scripts/init.sh ${GIT_REPO}
 	fi
 
 	info "start building project"
@@ -167,10 +174,10 @@ initsettings() {
 	DOC_PROJECT_NAME="$1"
 
 	if [ -z "$DOC_REPO" ]; then
-		while [ -z "$DOC_REPO" ]; do
+	#	while [ -z "$DOC_REPO" ]; do
 			ask "docker regestry server (repo.domain.de:5000)? [DOC_REPO]"
 			read DOC_REPO
-		done
+	#	done
 		echo "DOC_REPO=\"$DOC_REPO\"" >> "$DOC_SETTINGS"
 	fi
 
@@ -273,8 +280,9 @@ case "$1" in
 	"tag") out "build and tag"; buildandtag $2 $(get_current_version $2) ;;
 	"up") out "docker up"; dockerup "$2" ;;
 	"down") out "docker down"; shift; dockerdown $@ ;;
+	"stop") out "docker stop"; shift; dockerstop $@ ;;
 	"in") out "try to find a container and start a bash..."; dockerin ;;
 	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
-	"initproject") initproject "$2" ;;
+	"initproject") shift; initproject $@ ;;
 	*)   out "Unknown parameter"; showhelp; ;;
 esac
