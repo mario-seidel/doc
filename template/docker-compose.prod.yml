@@ -4,7 +4,7 @@ services:
         build:
             context: .
             dockerfile: dockerfiles/Dockerfile-prod
-        container_name: [projectname]_web_prod
+        container_name: ###projectname###_web_prod
         volumes:
             - /var/www/html/typo3conf
         environment:

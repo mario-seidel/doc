@@ -5,7 +5,8 @@ set -e
 # doc - Docker Operation Control
 ###
 
-VERSION=0.3
+VERSION=0.4
+
 DOCKER_COMPOSE_LOCAL_FILE="docker-compose.local.yml"
 DOCKER_COMPOSE_TEST_FILE="docker-compose.test.yml"
 DOCKER_COMPOSE_BETA_FILE="docker-compose.beta.yml"
@@ -13,9 +14,10 @@ DOCKER_COMPOSE_PROD_FILE="docker-compose.prod.yml"
 DOCKER_COMPOSE_FILE="docker-compose.yml"
 DOC_DOCKERFILE_INSTALL="./dockerfiles/Dockerfile-install"
 DOC_DOCKERFILE_PROD="./dockerfiles/Dockerfile-prod"
+DOC_VHOST_CONFIG="./config/apache-vhost.conf"
 DOC_SETTINGS="./config/settings.sh"
 SOURCE_DIR="./sources"
-
+NGINX_CONTAINER="nginx"
 
 showhelp() {
 	out ""
@@ -30,6 +32,7 @@ showhelp() {
 	out "in \t\t - search for running web container and open a shell in it"
 	out "deploy \t\t - build, tag and deploy to remote repo"
 	out "initproject \t - initialize a new project"
+	out "logs \t\t - show log output of all or specific container [web, typo3-db, nginx]"
 	out ""
 }
 
@@ -88,8 +91,8 @@ buildandtag() {
 	fi
 }
 
-build() {
-	docker-compose -f $DOCKER_COMPOSE_FILE -f $DOCKER_COMPOSE_LOCAL_FILE build
+dockerbuild() {
+	docker-compose -f $DOCKER_COMPOSE_FILE -f $DOCKER_COMPOSE_LOCAL_FILE build $@
 #    docker build --no-cache -t "$1" "$SOURCE_DIR"
 }
 
@@ -99,7 +102,8 @@ dockerup() {
 			if [ ! -f "$DOCKER_COMPOSE_LOCAL_FILE" ]; then
 				errout "no configuration file found in current dir ($DOCKER_COMPOSE_LOCAL_FILE)"
 			fi
-			docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" up
+			shift
+			docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" up -d $@
 		;;
 		"prod") out "building for prod";
 			docker-compose up
@@ -117,6 +121,15 @@ dockerdown() {
 dockerstop() {
     out "Stopping all containers"
     docker-compose stop $@
+}
+
+dockerip() {
+	CONTAINER_ID="$1"
+	echo $(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${CONTAINER_ID})
+}
+
+dockerlogs() {
+	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" logs -f $@
 }
 
 initproject() {
@@ -137,18 +150,23 @@ initproject() {
 	info "init project \"$DOC_FULL_NAME\""
 	cp ./template/docker-compose* .
 	cp ./template/Dockerfile* dockerfiles/
+	cp ./template/apache-vhost.conf ${DOC_VHOST_CONFIG}
 
 	for file in "$DOCKER_COMPOSE_FILE" "$DOCKER_COMPOSE_LOCAL_FILE" \
 		"$DOCKER_COMPOSE_TEST_FILE" "$DOCKER_COMPOSE_BETA_FILE" \
 		"$DOCKER_COMPOSE_PROD_FILE" "$DOC_DOCKERFILE_INSTALL" \
-		"$DOC_DOCKERFILE_PROD"; do
+		"$DOC_DOCKERFILE_PROD" "$DOC_VHOST_CONFIG"; do
 		if [ -w "$file" ]; then
-			sed -i "s|\[projectname\]|$DOC_PROJECT_NAME|g" "$file"
-			sed -i "s|\[username\]|$DOC_USERNAME|g" "$file"
-			sed -i "s|\[repohost\]|$DOC_REPO|g" "$file"
-			sed -i "s|\[github_oauth\]|$DOC_GITHUB_OAUTH|g" "$file"
-			sed -i "s|\[ssh_key_file\]|$DOC_SSH_KEY_FILE|g" "$file"
-			sed -i "s|\[ssh_auth_sock\]|$SSH_AUTH_SOCK|g" "$file"
+			sed -i "s|###projectnam###|$DOC_PROJECT_NAME|g" "$file"
+			sed -i "s|###username###|$DOC_USERNAME|g" "$file"
+			sed -i "s|###repohost###|$DOC_REPO|g" "$file"
+			sed -i "s|###github_oauth###|$DOC_GITHUB_OAUTH|g" "$file"
+			sed -i "s|###ssh_key_file###|$DOC_SSH_KEY_FILE|g" "$file"
+			sed -i "s|###ssh_auth_sock###|$SSH_AUTH_SOCK|g" "$file"
+			sed -i "s|###hostuser###|$HOST_USER|g" "$file"
+			sed -i "s|###hostuserid###|$HOST_USERID|g" "$file"
+			sed -i "s|###hostgroup###|$HOST_GROUP|g" "$file"
+			sed -i "s|###hostgroupid###|$HOST_GROUPID|g" "$file"
 		else
 			warnout "file "$file" is missing"
 		fi
@@ -162,7 +180,16 @@ initproject() {
 
 	info "start building project"
 	dockerup local &&
-    info "===========\n$DOC_FULL_NAME was built successfully\n\n"
+		info "===========\n$DOC_FULL_NAME was built successfully\n\n"
+
+	if [ -n ${NGINX_CONTAINER} ]; then
+		NGINX_IP=$(dockerip "nginx")
+		out "please add $NGINX_IP to your /etc/hosts or run this:"
+		out "sudo echo \"$NGINX_IP\t${DOC_PROJECT_NAME}.dmk\" >> /etc/hosts"
+	else
+		WEB_IP=$(dockerip "${DOC_PROJECT_NAME}_web_local")
+		out "please add IP $WEB_IP to your /etc/hosts"
+	fi
 }
 
 initsettings() {
@@ -173,19 +200,18 @@ initsettings() {
 
 	DOC_PROJECT_NAME="$1"
 
-	if [ -z "$DOC_REPO" ]; then
-	#	while [ -z "$DOC_REPO" ]; do
-			ask "docker regestry server (repo.domain.de:5000)? [DOC_REPO]"
-			read DOC_REPO
-	#	done
-		echo "DOC_REPO=\"$DOC_REPO\"" >> "$DOC_SETTINGS"
-	fi
-
 	if [ -z "$DOC_USERNAME" ]; then
 		while [ -z "$DOC_USERNAME" ]; do
 			ask "user / company name? [DOC_USERNAME]"
 			read DOC_USERNAME
 		done
+
+		ask "docker regestry server (repo.domain.de:5000)? [DOC_REPO]"
+		read DOC_REPO
+
+		if [ -n "$DOC_REPO" ]; then
+			DOC_USERNAME="$DOC_REPO\$DOC_USERNAME"
+		fi
 		echo "DOC_USERNAME=\"$DOC_USERNAME\"" >> "$DOC_SETTINGS"
 	fi
 
@@ -213,6 +239,32 @@ initsettings() {
 			read DOC_SSH_KEY_FILE
 		done
 		echo "DOC_SSH_KEY_FILE=\"$DOC_SSH_KEY_FILE\"" >> "$DOC_SETTINGS"
+	fi
+
+	if [ -z "$HOST_USER" ]; then
+		while [ -z "$HOST_USER" ]; do
+			ask "username for shared source dir (aka your username)? [HOST_USER]"
+			read HOST_USER
+		done
+		HOST_USERID=$(id -u ${HOST_USER})
+		if [ ${HOST_USERID} -le 0  ]; then
+			errout "user $HOST_USER does not exists"
+		fi
+		echo "HOST_USER=\"$HOST_USER\"" >> "$DOC_SETTINGS"
+		echo "HOST_USERID=$HOST_USERID" >> "$DOC_SETTINGS"
+	fi
+
+	if [ -z "$HOST_GROUP" ]; then
+		while [ -z "$HOST_GROUP" ]; do
+			ask "usergroup for shared source dir (aka your usergroup)? [HOST_GROUP]"
+			read HOST_GROUP
+		done
+		HOST_GROUPID=$(id -g ${HOST_USER})
+		if [ ${HOST_GROUPID} -le 0 ]; then
+			errout "user $HOST_GROUP does not exists"
+		fi
+		echo "HOST_GROUP=\"$HOST_GROUP\"" >> "$DOC_SETTINGS"
+		echo "HOST_GROUPID=$HOST_GROUPID" >> "$DOC_SETTINGS"
 	fi
 
 	source "$DOC_SETTINGS"
@@ -276,7 +328,7 @@ fi
 
 ### Main
 case "$1" in
-	"build") out "building image"; build ;;
+	"build") out "building image"; shift; dockerbuild $@ ;;
 	"tag") out "build and tag"; buildandtag $2 $(get_current_version $2) ;;
 	"up") out "docker up"; dockerup "$2" ;;
 	"down") out "docker down"; shift; dockerdown $@ ;;
@@ -284,5 +336,6 @@ case "$1" in
 	"in") out "try to find a container and start a bash..."; dockerin ;;
 	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
 	"initproject") shift; initproject $@ ;;
+	"logs") shift; dockerlogs $@ ;;
 	*)   out "Unknown parameter"; showhelp; ;;
 esac

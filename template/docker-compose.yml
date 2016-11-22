@@ -1,8 +1,8 @@
 version: '2'
 services:
     web:
-        image: [repohost]/[username]/[projectname]:1.0
-        container_name: [projectname]_web
+        image: ###username###/###projectname###:1.0
+        container_name: ###projectname###_web
         ports:
             - "8080:80"
         links:
@@ -13,7 +13,7 @@ services:
             DMK_APP_ENV: 'PRODUCTION'
     typo3-db:
         image: mariadb:latest
-        container_name: [projectname]_db
+        container_name: ###projectname###_db
         environment:
             MYSQL_ROOT_PASSWORD: 'yoursupersecretpassword'
             MYSQL_USER: 'typo3'

@@ -1,4 +1,4 @@
-FROM [repohost]/[username]/typo3base:7.6
+FROM ###username###/typo3base:7.6
 
 
 COPY ./sources /var/www/html
