@@ -157,7 +157,7 @@ initproject() {
 		"$DOCKER_COMPOSE_PROD_FILE" "$DOC_DOCKERFILE_INSTALL" \
 		"$DOC_DOCKERFILE_PROD" "$DOC_VHOST_CONFIG"; do
 		if [ -w "$file" ]; then
-			sed -i "s|###projectnam###|$DOC_PROJECT_NAME|g" "$file"
+			sed -i "s|###projectname###|$DOC_PROJECT_NAME|g" "$file"
 			sed -i "s|###username###|$DOC_USERNAME|g" "$file"
 			sed -i "s|###repohost###|$DOC_REPO|g" "$file"
 			sed -i "s|###github_oauth###|$DOC_GITHUB_OAUTH|g" "$file"
