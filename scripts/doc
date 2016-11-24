@@ -293,7 +293,17 @@ increment_version (){
   done
   new="${part[*]}"
   echo -e "${new// /.}"
-} 
+}
+
+self_update() {
+	DOC_DIR="`dirname $(realpath $(which doc))`/.."
+	if [ -d ${DOC_DIR} ]; then
+		info "updateing doc..."
+		cd ${DOC_DIR}
+		git pull
+		showhelp
+	fi
+}
 
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -337,5 +347,6 @@ case "$1" in
 	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
 	"initproject") shift; initproject $@ ;;
 	"logs") shift; dockerlogs $@ ;;
+	"self-update") self_update ;;
 	*)   out "Unknown parameter"; showhelp; ;;
 esac
