@@ -303,6 +303,8 @@ self_update() {
 		git pull
 		showhelp
 		info "...done"
+	else
+		errout "could not find doc dir"
 	fi
 }
 
