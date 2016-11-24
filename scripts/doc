@@ -24,15 +24,16 @@ showhelp() {
 	out "doc $VERSION"
 	out "========================================"
 	out "Commands:"
-	out "build \t\t - building an image"
-	out "tag \t\t - build and tag an image"
-	out "up \t\t - run docker-compose with given environment [local, prod]"
-	out "down \t\t - stop all containers an remove them"
-	out "stop \t\t - stop all containers"
-	out "in \t\t - search for running web container and open a shell in it"
-	out "deploy \t\t - build, tag and deploy to remote repo"
-	out "initproject \t - initialize a new project"
-	out "logs \t\t - show log output of all or specific container [web, typo3-db, nginx]"
+	out "build \t\t\t - building an image"
+	out "tag \t\t\t - build and tag an image"
+	out "up [local|prod] \t - run docker-compose with given environment"
+	out "down \t\t\t - stop all containers an remove them"
+	out "stop \t\t\t - stop all containers"
+	out "in \t\t\t - search for running web container and open a shell in it"
+	out "deploy \t\t\t - build, tag and deploy to remote repo"
+	out "initproject [git url] \t - initialize a new project"
+	out "logs [web|nginx] \t - show log output of all or specific container [web, typo3-db, nginx]"
+	out "self-update \t\t - run self update and pull latest version"
 	out ""
 }
 
@@ -109,7 +110,7 @@ dockerup() {
 			docker-compose up
 			;;
 		"whats") showhelp ;;
-		*) out "wrong env"; exit 1; ;;
+		*) out "wrong env, please use 'local' or 'prod'"; exit 1; ;;
 	esac
 }
 
