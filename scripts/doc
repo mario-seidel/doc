@@ -298,10 +298,11 @@ increment_version (){
 self_update() {
 	DOC_DIR="`dirname $(realpath $(which doc))`/.."
 	if [ -d ${DOC_DIR} ]; then
-		info "updateing doc..."
+		info "updating doc..."
 		cd ${DOC_DIR}
 		git pull
 		showhelp
+		info "...done"
 	fi
 }
 
