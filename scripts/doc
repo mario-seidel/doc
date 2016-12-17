@@ -163,7 +163,7 @@ initproject() {
 		info "===========\n$DOC_FULL_NAME was built successfully\n\n"
 
 	if [ -n ${NGINX_CONTAINER} ]; then
-		NGINX_IP=$(dockerip "nginx")
+		NGINX_IP=$(dockerip "$NGINX_CONTAINER")
 		out "please add $NGINX_IP to your /etc/hosts or run this:"
 		out "echo -e \"$NGINX_IP\\\t${DOC_PROJECT_NAME}.dmk\" | sudo tee --append /etc/hosts"
 	else
@@ -279,9 +279,18 @@ initdockerfiles() {
 }
 
 dockerin() {
-	WEB_CONTAINER=$(docker ps -f name=_web -q -l)
+	if [ -z "$DOC_PROJECT_NAME" ]; then
+		errout "no project name defined"
+	fi
+
+	WEB_CONTAINER=$(docker ps -f name="$DOC_PROJECT_NAME"_web_local -q -l)
+
+	if [ -z "$WEB_CONTAINER" ]; then
+		errout "no web container found, ${DOC_PROJECT_NAME}_web_local is not running"
+	fi
+
 	info $(docker inspect --format 'Name: {{.Name}} erstellt: {{.Created}}' "$WEB_CONTAINER")
-	docker exec -ti "$WEB_CONTAINER" bash
+	docker exec -ti -u "$HOST_USER:$HOST_GROUP" "$WEB_CONTAINER" bash
 }
 
 
