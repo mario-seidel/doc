@@ -165,10 +165,11 @@ initproject() {
 	if [ -n ${NGINX_CONTAINER} ]; then
 		NGINX_IP=$(dockerip "nginx")
 		out "please add $NGINX_IP to your /etc/hosts or run this:"
-		out "sudo echo \"$NGINX_IP\t${DOC_PROJECT_NAME}.dmk\" >> /etc/hosts"
+		out "echo -e \"$NGINX_IP\\\t${DOC_PROJECT_NAME}.dmk\" | sudo tee --append /etc/hosts"
 	else
 		WEB_IP=$(dockerip "${DOC_PROJECT_NAME}_web_local")
-		out "please add IP $WEB_IP to your /etc/hosts"
+		out "please add IP $WEB_IP to your /etc/hosts or run this:"
+		out "echo -e \"$WEB_IP\\\t${DOC_PROJECT_NAME}.dmk\" | sudo tee --append /etc/hosts"
 	fi
 }
 
