@@ -24,16 +24,17 @@ showhelp() {
 	out "doc $VERSION"
 	out "========================================"
 	out "Commands:"
-	out "build \t\t\t - building an image"
-	out "tag \t\t\t - build and tag an image"
-	out "up [local|prod] \t - run docker-compose with given environment"
-	out "down \t\t\t - stop all containers an remove them"
-	out "stop \t\t\t - stop all containers"
-	out "in \t\t\t - search for running web container and open a shell in it"
-	out "deploy \t\t\t - build, tag and deploy to remote repo"
-	out "initproject [git url] \t - initialize a new project"
-	out "logs [web|nginx] \t - show log output of all or specific container [web, typo3-db, nginx]"
-	out "self-update \t\t - run self update and pull latest version"
+	out "build \t\t\t\t\t - building an image"
+	out "tag \t\t\t\t\t - build and tag an image"
+	out "up [local|prod] \t\t\t - run docker-compose with given environment"
+	out "down \t\t\t\t\t - stop all containers an remove them"
+	out "stop \t\t\t\t\t - stop all containers"
+	out "in \t\t\t\t\t - search for running web container and open a shell in it"
+	out "deploy \t\t\t\t\t - build, tag and deploy to remote repo"
+	out "initproject [projectname] [git url] \t - initialize a new project"
+	out "logs [web|nginx] \t\t\t - show log output of all or specific container [web, typo3-db, nginx]"
+	out "reinit [projectname] \t\t\t - rewrite all Docker- and docker-composer files from templates"
+	out "self-update \t\t\t\t - run self update and pull latest version"
 	out ""
 }
 
@@ -149,29 +150,7 @@ initproject() {
 	fi
 	
 	info "init project \"$DOC_FULL_NAME\""
-	cp ./template/docker-compose* .
-	cp ./template/Dockerfile* dockerfiles/
-	cp ./template/apache-vhost.conf ${DOC_VHOST_CONFIG}
-
-	for file in "$DOCKER_COMPOSE_FILE" "$DOCKER_COMPOSE_LOCAL_FILE" \
-		"$DOCKER_COMPOSE_TEST_FILE" "$DOCKER_COMPOSE_BETA_FILE" \
-		"$DOCKER_COMPOSE_PROD_FILE" "$DOC_DOCKERFILE_INSTALL" \
-		"$DOC_DOCKERFILE_PROD" "$DOC_VHOST_CONFIG"; do
-		if [ -w "$file" ]; then
-			sed -i "s|###projectname###|$DOC_PROJECT_NAME|g" "$file"
-			sed -i "s|###username###|$DOC_USERNAME|g" "$file"
-			sed -i "s|###repohost###|$DOC_REPO|g" "$file"
-			sed -i "s|###github_oauth###|$DOC_GITHUB_OAUTH|g" "$file"
-			sed -i "s|###ssh_key_file###|$DOC_SSH_KEY_FILE|g" "$file"
-			sed -i "s|###ssh_auth_sock###|$SSH_AUTH_SOCK|g" "$file"
-			sed -i "s|###hostuser###|$HOST_USER|g" "$file"
-			sed -i "s|###hostuserid###|$HOST_USERID|g" "$file"
-			sed -i "s|###hostgroup###|$HOST_GROUP|g" "$file"
-			sed -i "s|###hostgroupid###|$HOST_GROUPID|g" "$file"
-		else
-			warnout "file "$file" is missing"
-		fi
-	done
+	initdockerfiles
 
 	#initialize all deps before start building
 	if [ -f "scripts/init.sh" ]; then
@@ -217,7 +196,7 @@ initsettings() {
 	fi
 
 	if [ -z "$DOC_PROJECT_NAME" ] || [ -z "$DOC_FULL_NAME" ]; then
-		while [ -z "DOC_PROJECT_NAME" ]; do
+		while [ -z "$DOC_PROJECT_NAME" ]; do
 			ask "project name? [DOC_PROJECT_NAME]"
 			read DOC_PROJECT_NAME
 		done
@@ -270,6 +249,32 @@ initsettings() {
 
 	source "$DOC_SETTINGS"
 	export DOC_SETTINGS
+}
+
+initdockerfiles() {
+	cp ./template/docker-compose* .
+	cp ./template/Dockerfile* dockerfiles/
+	cp ./template/apache-vhost.conf ${DOC_VHOST_CONFIG}
+
+	for file in "$DOCKER_COMPOSE_FILE" "$DOCKER_COMPOSE_LOCAL_FILE" \
+		"$DOCKER_COMPOSE_TEST_FILE" "$DOCKER_COMPOSE_BETA_FILE" \
+		"$DOCKER_COMPOSE_PROD_FILE" "$DOC_DOCKERFILE_INSTALL" \
+		"$DOC_DOCKERFILE_PROD" "$DOC_VHOST_CONFIG"; do
+		if [ -w "$file" ]; then
+			sed -i "s|###projectname###|$DOC_PROJECT_NAME|g" "$file"
+			sed -i "s|###username###|$DOC_USERNAME|g" "$file"
+			sed -i "s|###repohost###|$DOC_REPO|g" "$file"
+			sed -i "s|###github_oauth###|$DOC_GITHUB_OAUTH|g" "$file"
+			sed -i "s|###ssh_key_file###|$DOC_SSH_KEY_FILE|g" "$file"
+			sed -i "s|###ssh_auth_sock###|$SSH_AUTH_SOCK|g" "$file"
+			sed -i "s|###hostuser###|$HOST_USER|g" "$file"
+			sed -i "s|###hostuserid###|$HOST_USERID|g" "$file"
+			sed -i "s|###hostgroup###|$HOST_GROUP|g" "$file"
+			sed -i "s|###hostgroupid###|$HOST_GROUPID|g" "$file"
+		else
+			warnout "file "$file" is missing"
+		fi
+	done
 }
 
 dockerin() {
@@ -351,6 +356,7 @@ case "$1" in
 	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
 	"initproject") shift; initproject $@ ;;
 	"logs") shift; dockerlogs $@ ;;
+	"reinit") shift; out "reinit all Dockerfiles"; initsettings $@ && initdockerfiles ;;
 	"self-update") self_update ;;
 	*)   out "Unknown parameter"; showhelp; ;;
 esac
