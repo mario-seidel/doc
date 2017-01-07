@@ -18,6 +18,7 @@ DOC_VHOST_CONFIG="./config/apache-vhost.conf"
 DOC_SETTINGS="./config/settings.sh"
 SOURCE_DIR="./sources"
 NGINX_CONTAINER="nginx"
+DOC_LOCAL_DOMAIN="local"
 
 showhelp() {
 	out ""
@@ -165,11 +166,11 @@ initproject() {
 	if [ -n ${NGINX_CONTAINER} ]; then
 		NGINX_IP=$(dockerip "$NGINX_CONTAINER")
 		out "please add $NGINX_IP to your /etc/hosts or run this:"
-		out "echo -e \"$NGINX_IP\\\t${DOC_PROJECT_NAME}.dmk\" | sudo tee --append /etc/hosts"
+		out "echo -e \"$NGINX_IP\\\t${DOC_PROJECT_NAME}.${DOC_LOCAL_DOMAIN}\" | sudo tee -a /etc/hosts"
 	else
 		WEB_IP=$(dockerip "${DOC_PROJECT_NAME}_web_local")
 		out "please add IP $WEB_IP to your /etc/hosts or run this:"
-		out "echo -e \"$WEB_IP\\\t${DOC_PROJECT_NAME}.dmk\" | sudo tee --append /etc/hosts"
+		out "echo -e \"$WEB_IP\\\t${DOC_PROJECT_NAME}.${DOC_LOCAL_DOMAIN}\" | sudo tee -a/etc/hosts"
 	fi
 }
 
@@ -197,7 +198,7 @@ initsettings() {
 	fi
 
 	if [ -z "$DOC_PROJECT_NAME" ] || [ -z "$DOC_FULL_NAME" ]; then
-		while [ -z "$DOC_PROJECT_NAME" ]; do
+		while [ -z "DOC_PROJECT_NAME" ]; do
 			ask "project name? [DOC_PROJECT_NAME]"
 			read DOC_PROJECT_NAME
 		done
@@ -248,6 +249,15 @@ initsettings() {
 		echo "HOST_GROUPID=$HOST_GROUPID" >> "$DOC_SETTINGS"
 	fi
 
+	if [ -z "$DOC_LOCAL_DOMAIN" ]; then
+		while [ -z "$DOC_LOCAL_DOMAIN" ]; do
+			ask "local TLD without dot (default is 'local') ? [DOC_LOCAL_DOMAIN]"
+			read DOC_LOCAL_DOMAIN
+			DOC_LOCAL_DOMAIN=${DOC_LOCAL_DOMAIN:-local}
+		done
+		echo "DOC_LOCAL_DOMAIN=\"$DOC_LOCAL_DOMAIN\"" >> "$DOC_SETTINGS"
+	fi
+
 	source "$DOC_SETTINGS"
 	export DOC_SETTINGS
 }
@@ -272,6 +282,7 @@ initdockerfiles() {
 			sed -i "s|###hostuserid###|$HOST_USERID|g" "$file"
 			sed -i "s|###hostgroup###|$HOST_GROUP|g" "$file"
 			sed -i "s|###hostgroupid###|$HOST_GROUPID|g" "$file"
+			sed -i "s|###local_domain###|$DOC_LOCAL_DOMAIN|g" "$file"
 		else
 			warnout "file "$file" is missing"
 		fi
