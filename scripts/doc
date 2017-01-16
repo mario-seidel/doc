@@ -18,7 +18,6 @@ DOC_VHOST_CONFIG="./config/apache-vhost.conf"
 DOC_SETTINGS="./config/settings.sh"
 SOURCE_DIR="./sources"
 NGINX_CONTAINER="nginx"
-DOC_LOCAL_DOMAIN="local"
 
 showhelp() {
 	out ""
