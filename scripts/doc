@@ -136,6 +136,11 @@ conteinerstatus() {
 	echo $(docker inspect -f '{{ .State.Status}}' ${CONTAINER_ID})
 }
 
+containerports() {
+	CONTAINER_ID="$1"
+	echo $(docker port ${CONTAINER_ID})
+}
+
 dockerlogs() {
 	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" logs -f $@
 }
@@ -152,6 +157,7 @@ dockerstatus() {
 	info "container: $LOCAL_CONTAINER"
 	info "status: $STATE"
 	info "IP: $WEB_IP"
+	info "ports: $(containerports ${LOCAL_CONTAINER})"
 	info "URL: http://$DOC_PROJECT_NAME.$DOC_LOCAL_DOMAIN"
 }
 
