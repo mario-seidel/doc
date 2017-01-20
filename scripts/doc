@@ -29,6 +29,7 @@ showhelp() {
 	out "up [local|prod] \t\t\t - run docker-compose with given environment"
 	out "down \t\t\t\t\t - stop all containers an remove them"
 	out "stop \t\t\t\t\t - stop all containers"
+	out "status \t\t\t\t\t - shows status informations about current web container"
 	out "in \t\t\t\t\t - search for running web container and open a shell in it"
 	out "deploy \t\t\t\t\t - build, tag and deploy to remote repo"
 	out "initproject [projectname] [git url] \t - initialize a new project"
@@ -130,8 +131,28 @@ dockerip() {
 	echo $(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${CONTAINER_ID})
 }
 
+conteinerstatus() {
+	CONTAINER_ID="$1"
+	echo $(docker inspect -f '{{ .State.Status}}' ${CONTAINER_ID})
+}
+
 dockerlogs() {
 	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" logs -f $@
+}
+
+##
+# shows status information about a container
+##
+dockerstatus() {
+	source "$DOC_SETTINGS"
+	initsettings ${DOC_PROJECT_NAME}
+	LOCAL_CONTAINER="${DOC_PROJECT_NAME}_web_local"
+	WEB_IP=$(dockerip ${LOCAL_CONTAINER})
+	STATE=$(conteinerstatus ${LOCAL_CONTAINER})
+	info "container: $LOCAL_CONTAINER"
+	info "status: $STATE"
+	info "IP: $WEB_IP"
+	info "URL: http://$DOC_PROJECT_NAME.$DOC_LOCAL_DOMAIN"
 }
 
 initproject() {
@@ -197,7 +218,7 @@ initsettings() {
 	fi
 
 	if [ -z "$DOC_PROJECT_NAME" ] || [ -z "$DOC_FULL_NAME" ]; then
-		while [ -z "DOC_PROJECT_NAME" ]; do
+		while [ -z "$DOC_PROJECT_NAME" ]; do
 			ask "project name? [DOC_PROJECT_NAME]"
 			read DOC_PROJECT_NAME
 		done
@@ -372,6 +393,7 @@ case "$1" in
 	"up") out "docker up"; dockerup "$2" ;;
 	"down") out "docker down"; shift; dockerdown $@ ;;
 	"stop") out "docker stop"; shift; dockerstop $@ ;;
+	"status") out "container status:"; shift; dockerstatus ;;
 	"in") out "try to find a container and start a bash..."; dockerin ;;
 	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
 	"initproject") shift; initproject $@ ;;
