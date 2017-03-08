@@ -95,7 +95,7 @@ buildandtag() {
 }
 
 dockerbuild() {
-	docker-compose -f $DOCKER_COMPOSE_FILE -f $DOCKER_COMPOSE_LOCAL_FILE build $@
+	docker-compose -f $DOCKER_COMPOSE_FILE -f $DOCKER_COMPOSE_LOCAL_FILE build --force-rm $@
 #    docker build --no-cache -t "$1" "$SOURCE_DIR"
 }
 
@@ -108,8 +108,10 @@ dockerup() {
 			shift
 			docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" up -d $@
 		;;
-		"prod") out "building for prod";
-			docker-compose up
+		"prod")
+			shift
+			out "building for prod with option $@";
+			docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_PROD_FILE" up -d --force-recreate
 			;;
 		"whats") showhelp ;;
 		*) out "wrong env, please use 'local' or 'prod'"; exit 1; ;;
@@ -123,7 +125,7 @@ dockerdown() {
 
 dockerstop() {
     out "Stopping all containers"
-    docker-compose stop $@
+    docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" stop $@
 }
 
 dockerip() {
@@ -359,6 +361,43 @@ self_update() {
 	else
 		errout "could not find doc dir"
 	fi
+}
+
+##
+# parse yaml files to a list of variables
+# example:
+#	global:
+#	  debug: yes
+#	  verbose: no
+#	  debugging:
+#		detailed: no
+#		header: "debugging started"
+#
+#	output:
+#	   file: "yes"
+#
+# will output:
+#	global_debug="yes"
+#	global_verbose="no"
+#	global_debugging_detailed="no"
+#	global_debugging_header="debugging started"
+#	output_file="yes"
+##
+function parse_yaml {
+   local prefix=$2
+   local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
+   sed -ne "s|^\($s\):|\1|" \
+        -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
+        -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $1 |
+   awk -F$fs '{
+      indent = length($1)/2;
+      vname[indent] = $2;
+      for (i in vname) {if (i > indent) {delete vname[i]}}
+      if (length($3) > 0) {
+         vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+         printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
+      }
+   }'
 }
 
 RED='\033[0;31m'
