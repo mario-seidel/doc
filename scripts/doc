@@ -5,7 +5,7 @@ set -e
 # doc - Docker Operation Control
 ###
 
-VERSION=0.7
+VERSION=0.8
 
 DOCKER_COMPOSE_LOCAL_FILE="docker-compose.local.yml"
 DOCKER_COMPOSE_TEST_FILE="docker-compose.test.yml"
