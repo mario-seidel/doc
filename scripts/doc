@@ -5,19 +5,16 @@ set -e
 # doc - Docker Operation Control
 ###
 
-VERSION=0.8
+VERSION=0.9
 
-DOCKER_COMPOSE_LOCAL_FILE="docker-compose.local.yml"
-DOCKER_COMPOSE_TEST_FILE="docker-compose.test.yml"
-DOCKER_COMPOSE_BETA_FILE="docker-compose.beta.yml"
-DOCKER_COMPOSE_PROD_FILE="docker-compose.prod.yml"
 DOCKER_COMPOSE_FILE="docker-compose.yml"
-DOC_DOCKERFILE_INSTALL="./dockerfiles/Dockerfile-install"
 DOC_DOCKERFILE_PROD="./dockerfiles/Dockerfile-prod"
-DOC_VHOST_CONFIG="./config/apache-vhost.conf"
+DOC_DOCKERFILE_FOLDER="./dockerfiles"
+DOC_VHOST_CONFIG_FOLDER="./config"
 DOC_SETTINGS="./config/settings.sh"
 SOURCE_DIR="./sources"
 NGINX_CONTAINER="nginx"
+ENVIRONMENT=
 
 showhelp() {
 	out ""
@@ -94,38 +91,48 @@ buildandtag() {
 	fi
 }
 
+checkIfComposeFilesExistByEnvironment() {
+	if [ ! -f "docker-compose.$1.yml" ]; then
+		errout "configuration file docker-compose.$1.yml not found in current dir"
+	fi
+	if [ ! -f $DOCKER_COMPOSE_FILE ]; then
+		errout "configuration file docker-compose.yml not found in current dir"
+	fi
+}
+
+initEnvironment() {
+	ENVIRONMENT=$1
+
+	if [ -z "$ENVIRONMENT" ]; then
+		ENVIRONMENT="local"
+	fi
+}
+
 dockerbuild() {
-	docker-compose -f $DOCKER_COMPOSE_FILE -f $DOCKER_COMPOSE_LOCAL_FILE build --force-rm $@
-#    docker build --no-cache -t "$1" "$SOURCE_DIR"
+	initEnvironment "$1"
+	shift
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+	docker-compose -f $DOCKER_COMPOSE_FILE -f "docker-compose.$ENVIRONMENT.yml" build --force-rm $@
 }
 
 dockerup() {
-	case "$1" in
-		"local") out "building for local";
-			if [ ! -f "$DOCKER_COMPOSE_LOCAL_FILE" ]; then
-				errout "no configuration file found in current dir ($DOCKER_COMPOSE_LOCAL_FILE)"
-			fi
-			shift
-			docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" up -d $@
-		;;
-		"prod")
-			shift
-			out "building for prod with option $@";
-			docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_PROD_FILE" up -d --force-recreate
-			;;
-		"whats") showhelp ;;
-		*) out "wrong env, please use 'local' or 'prod'"; exit 1; ;;
-	esac
+	initEnvironment "$1"
+	shift
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" up -d $@
 }
 
 dockerdown() {
-    out "Stopping and remove all containers"
-    docker-compose down $@
+    	out "Stopping and remove all containers"
+    	docker-compose down $@
 }
 
 dockerstop() {
-    out "Stopping all containers"
-    docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" stop $@
+	initEnvironment "$1"
+	shift
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+	out "Stopping container for docker-compose.$ENVIRONMENT.yml"
+    	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" stop $@
 }
 
 dockerip() {
@@ -144,7 +151,10 @@ containerports() {
 }
 
 dockerlogs() {
-	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_LOCAL_FILE" logs -f $@
+	initEnvironment "$1"
+	shift
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" logs -f $@
 }
 
 ##
@@ -179,7 +189,7 @@ initproject() {
 	fi
 	
 	info "init project \"$DOC_FULL_NAME\""
-	initdockerfiles
+	initConfigurationFiles
 
 	#initialize all deps before start building
 	if [ -f "scripts/init.sh" ]; then
@@ -290,16 +300,9 @@ initsettings() {
 	export DOC_SETTINGS
 }
 
-initdockerfiles() {
-	cp ./template/docker-compose* .
-	cp ./template/Dockerfile* dockerfiles/
-	cp ./template/apache-vhost.conf ${DOC_VHOST_CONFIG}
-
-	for file in "$DOCKER_COMPOSE_FILE" "$DOCKER_COMPOSE_LOCAL_FILE" \
-		"$DOCKER_COMPOSE_TEST_FILE" "$DOCKER_COMPOSE_BETA_FILE" \
-		"$DOCKER_COMPOSE_PROD_FILE" "$DOC_DOCKERFILE_INSTALL" \
-		"$DOC_DOCKERFILE_PROD" "$DOC_VHOST_CONFIG"; do
-		if [ -w "$file" ]; then
+replaceMarkerInFiles() {
+	for file in $1; do
+		if [ -f "$file" ]; then
 			sed -i "s|###projectname###|$DOC_PROJECT_NAME|g" "$file"
 			sed -i "s|###username###|$DOC_USERNAME|g" "$file"
 			sed -i "s|###repohost###|$DOC_REPO|g" "$file"
@@ -311,10 +314,19 @@ initdockerfiles() {
 			sed -i "s|###hostgroup###|$HOST_GROUP|g" "$file"
 			sed -i "s|###hostgroupid###|$HOST_GROUPID|g" "$file"
 			sed -i "s|###local_domain###|$DOC_LOCAL_DOMAIN|g" "$file"
-		else
-			warnout "file "$file" is missing"
 		fi
 	done
+}
+
+initConfigurationFiles() {
+	cp ./template/docker-compose* .
+	cp ./template/Dockerfile* dockerfiles/
+	cp ./template/apache-vhost* ${DOC_VHOST_CONFIG_FOLDER}/
+
+	### wir können im for loop nicht mit einmal mehrere Ordner mit Wildcard durchgehen
+	replaceMarkerInFiles "./docker-compose*"
+	replaceMarkerInFiles "$DOC_DOCKERFILE_FOLDER/Dockerfile*"
+	replaceMarkerInFiles "$DOC_VHOST_CONFIG_FOLDER/apache-vhost*"
 }
 
 dockerin() {
@@ -443,7 +455,7 @@ case "$1" in
 	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
 	"initproject") shift; initproject $@ ;;
 	"logs") shift; dockerlogs $@ ;;
-	"reinit") shift; out "reinit all Dockerfiles"; initsettings $@ && initdockerfiles ;;
+	"reinit") shift; out "reinit all Dockerfiles"; initsettings $@ && initConfigurationFiles ;;
 	"self-update") self_update ;;
 	*)   out "Unknown parameter"; showhelp; ;;
 esac
