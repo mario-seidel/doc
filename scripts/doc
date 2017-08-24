@@ -15,6 +15,7 @@ DOC_SETTINGS="./config/settings.sh"
 SOURCE_DIR="./sources"
 NGINX_CONTAINER="nginx"
 ENVIRONMENT=
+IS_DEFAULT_ENVIRONMENT=0
 
 showhelp() {
 	out ""
@@ -105,19 +106,24 @@ initEnvironment() {
 
 	if [ -z "$ENVIRONMENT" ]; then
 		ENVIRONMENT="local"
+		IS_DEFAULT_ENVIRONMENT=1
 	fi
 }
 
 dockerbuild() {
 	initEnvironment "$1"
-	shift
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 1 ]; then
+		shift;
+	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 	docker-compose -f $DOCKER_COMPOSE_FILE -f "docker-compose.$ENVIRONMENT.yml" build --force-rm $@
 }
 
 dockerup() {
 	initEnvironment "$1"
-	shift
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 1 ]; then
+		shift;
+	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" up -d $@
 }
@@ -129,7 +135,9 @@ dockerdown() {
 
 dockerstop() {
 	initEnvironment "$1"
-	shift
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
+		shift;
+	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 	out "Stopping container for docker-compose.$ENVIRONMENT.yml"
     	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" stop $@
@@ -152,7 +160,9 @@ containerports() {
 
 dockerlogs() {
 	initEnvironment "$1"
-	shift
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 1 ]; then
+		shift;
+	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" logs -f $@
 }
