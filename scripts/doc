@@ -112,7 +112,7 @@ initEnvironment() {
 
 dockerbuild() {
 	initEnvironment "$1"
-	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 1 ]; then
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
@@ -121,7 +121,7 @@ dockerbuild() {
 
 dockerup() {
 	initEnvironment "$1"
-	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 1 ]; then
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
@@ -160,7 +160,7 @@ containerports() {
 
 dockerlogs() {
 	initEnvironment "$1"
-	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 1 ]; then
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
