@@ -116,7 +116,7 @@ dockerbuild() {
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -f $DOCKER_COMPOSE_FILE -f "docker-compose.$ENVIRONMENT.yml" build --force-rm $@
+	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f $DOCKER_COMPOSE_FILE -f "docker-compose.$ENVIRONMENT.yml" build --force-rm $@
 }
 
 dockerup() {
@@ -125,7 +125,7 @@ dockerup() {
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" up -d $@
+	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" up -d $@
 }
 
 dockerdown() {
@@ -140,7 +140,7 @@ dockerstop() {
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 	out "Stopping container for docker-compose.$ENVIRONMENT.yml"
-    	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" stop $@
+    	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" stop $@
 }
 
 dockerip() {
@@ -164,7 +164,7 @@ dockerlogs() {
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" logs -f $@
+	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" logs -f $@
 }
 
 ##
