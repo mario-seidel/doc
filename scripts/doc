@@ -351,7 +351,7 @@ dockerin() {
 	fi
 
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" exec $SERVICE bash
+	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" exec --user "$HOST_USER" $SERVICE bash
 }
 
 
