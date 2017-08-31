@@ -28,7 +28,7 @@ showhelp() {
 	out "down \t\t\t\t\t - stop all containers an remove them"
 	out "stop [environment] \t\t\t\t\t - stop container with given environment. default is local if none given."
 	out "status \t\t\t\t\t - shows status informations about current web container"
-	out "in \t\t\t\t\t - search for running web container and open a shell in it"
+	out "in \t\t\t\t\t - start bash in given service (second argument, default is web) for given environment (first argument, default is local)"
 	out "deploy \t\t\t\t\t - build, tag and deploy to remote repo"
 	out "initproject [projectname] [git url] \t - initialize a new project"
 	out "logs [environment] [nginx|web] \t\t\t - show log output of all or specific container [web, typo3-db, nginx] with given environment."
@@ -340,18 +340,18 @@ initConfigurationFiles() {
 }
 
 dockerin() {
-	if [ -z "$DOC_PROJECT_NAME" ]; then
-		errout "no project name defined"
+	initEnvironment "$1"
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
+		shift;
 	fi
 
-	WEB_CONTAINER=$(docker ps -f name="$DOC_PROJECT_NAME"_web_local -q -l)
-
-	if [ -z "$WEB_CONTAINER" ]; then
-		errout "no web container found, ${DOC_PROJECT_NAME}_web_local is not running"
+	SERVICE=$1
+	if [ -z "$SERVICE" ]; then
+		SERVICE="web"
 	fi
 
-	info $(docker inspect --format 'Name: {{.Name}} erstellt: {{.Created}}' "$WEB_CONTAINER")
-	docker exec -ti -u "$HOST_USER:$HOST_GROUP" "$WEB_CONTAINER" bash
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" exec $SERVICE bash
 }
 
 
@@ -461,7 +461,7 @@ case "$1" in
 	"down") out "docker down"; shift; dockerdown $@ ;;
 	"stop") out "docker stop"; shift; dockerstop $@ ;;
 	"status") out "container status:"; shift; dockerstatus ;;
-	"in") out "try to find a container and start a bash..."; dockerin ;;
+	"in") shift; out "starting bash..."; dockerin $@ ;;
 	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
 	"initproject") shift; initproject $@ ;;
 	"logs") shift; dockerlogs $@ ;;
