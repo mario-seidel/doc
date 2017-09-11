@@ -5,7 +5,7 @@ set -e
 # doc - Docker Operation Control
 ###
 
-VERSION=0.10
+VERSION=0.11
 
 DOCKER_COMPOSE_FILE="docker-compose.yml"
 DOC_DOCKERFILE_PROD="./dockerfiles/Dockerfile-prod"
