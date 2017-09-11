@@ -16,6 +16,7 @@ SOURCE_DIR="./sources"
 NGINX_CONTAINER="nginx"
 ENVIRONMENT=
 IS_DEFAULT_ENVIRONMENT=0
+DOCKER_COMPOSE_CMD=$(which docker-compose)
 
 showhelp() {
 	out ""
@@ -30,7 +31,8 @@ showhelp() {
 	out "status \t\t\t\t\t - shows status informations about current web container"
 	out "in \t\t\t\t\t - start bash in given service (second argument, default is web) for given environment (first argument, default is local)"
 	out "ps \t\t\t\t\t - show process list of all containers"
-	out "exec [environment] [service] COMMAND \t - executes a COMMAND in a container service with user privileges"
+	out "exec [[environment] service] COMMAND \t - executes a COMMAND in a container service with user privileges"
+	out "suexec [[environment] service] COMMAND \t - executes a COMMAND in a container service with root privileges"
 	out "deploy \t\t\t\t\t - build, tag and deploy to remote repo"
 	out "initproject [projectname] [git url] \t - initialize a new project"
 	out "logs [environment] [nginx|web] \t\t - show log output of all or specific container [web, typo3-db, nginx] with given environment."
@@ -197,6 +199,76 @@ dockerstatus() {
 	info "URL: http://$DOC_PROJECT_NAME.$DOC_LOCAL_DOMAIN"
 }
 
+dockerin() {
+	initEnvironment "$1"
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
+		shift;
+	fi
+
+	SERVICE=$1
+	if [ -z "$SERVICE" ]; then
+		SERVICE="web"
+	fi
+
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" exec --user "$HOST_USER" $SERVICE bash
+}
+
+##
+# Execute a command in the container with user privileges, if -u flag is given. Else
+# the command is executed with root privileges.
+# Optinal an environment and a service could be specified.
+# If 2 arguments are given, the first is the service and the second is the command.
+# If 3 arguments are given, the order is ENV SERVICE COMMAND.
+#
+# examples:
+# 	doc exec ps
+# 	doc exec 'ps aux'
+# 	doc exec webpack 'npm update'
+# 	doc exec prod db 'mysqldump -u root -p root > dump.sql'
+##
+dockerexec() {
+	local withUserPriv=0
+
+	if [ -n "$1" ] && [ "$1" == "-u" ]; then
+		withUserPriv=1
+		shift
+	fi
+
+	case "$#" in
+		3)
+			initEnvironment "$1"
+			shift
+			SERVICE=$1
+			shift
+			;;
+		2)
+			initEnvironment
+			SERVICE=$1
+			shift
+			;;
+		1)
+			initEnvironment
+			SERVICE="web"
+			;;
+		*)
+			info "usage: doc exec COMMAND"
+			errout "need at lease one command but at most 3 arguments"
+	esac
+
+	info "exec '$@' in service '$SERVICE' in project '${DOC_PROJECT_NAME}_$ENVIRONMENT'"
+
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+
+	#execute command with or without user privileges
+	if (( withUserPriv == 1 )); then
+		dockerComposeExec exec --user "$HOST_USER" "$SERVICE" $@
+	else
+		dockerComposeExec exec "$SERVICE" $@
+
+	fi
+}
+
 initproject() {
 	DOC_PROJECT_NAME=$1
 	GIT_REPO=$2
@@ -355,56 +427,15 @@ initConfigurationFiles() {
 	replaceMarkerInFiles "$DOC_VHOST_CONFIG_FOLDER/apache-vhost*"
 }
 
-dockerin() {
-	initEnvironment "$1"
-	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
-		shift;
-	fi
-
-	SERVICE=$1
-	if [ -z "$SERVICE" ]; then
-		SERVICE="web"
-	fi
-
-	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" exec --user "$HOST_USER" $SERVICE bash
-}
-
-##
-# Execute a command in the container with user privileges.
-# Optinal an environment and a service could be specified.
-# If 2 arguments are given, the first is the service and the second is the command.
-##
-dockerexec() {
-	case "$#" in
-		3)
-			initEnvironment "$1"
-			shift
-			SERVICE=$1
-			shift
-			;;
-		2)
-			initEnvironment
-			SERVICE=$1
-			shift
-			;;
-		1)
-			initEnvironment
-			SERVICE="web"
-			;;
-		*)
-			info "usage: doc exec COMMAND"
-			errout "need at lease one command but at most 3 arguments"
-	esac
-
-	info "exec '$@' in service '$SERVICE' in container '${DOC_PROJECT_NAME}_${SERVICE}_${ENVIRONMENT}'"
-
-	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" exec --user "$HOST_USER" "$SERVICE" $@
-}
-
-
 ### Helper Methods
+
+##
+# execute a docker compose command with the given environment and config files
+##
+dockerComposeExec() {
+	eval "${DOCKER_COMPOSE_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
+		-f docker-compose.${ENVIRONMENT}.yml" $@
+}
 
 increment_version (){
 	declare -a part=( ${1//\./ } )
@@ -511,7 +542,8 @@ case "$1" in
 	"stop") out "docker stop"; shift; dockerstop $@ ;;
 	"status") out "container status:"; shift; dockerstatus ;;
 	"ps") shift; dockerps $@ ;;
-	"exec") shift; dockerexec "$@" ;;
+	"exec") shift; dockerexec -u "$@" ;;
+	"suexec") shift; dockerexec "$@" ;;
 	"in") shift; out "starting bash..."; dockerin $@ ;;
 	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
 	"initproject") shift; initproject $@ ;;
