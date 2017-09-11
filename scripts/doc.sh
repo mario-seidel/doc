@@ -326,7 +326,7 @@ initsettings() {
 
 replaceMarkerInFiles() {
 	for file in $1; do
-		if [ -f "$file" ]; then
+		if [ -w "$file" ]; then
 			sed -i "s|###projectname###|$DOC_PROJECT_NAME|g" "$file"
 			sed -i "s|###username###|$DOC_USERNAME|g" "$file"
 			sed -i "s|###repohost###|$DOC_REPO|g" "$file"
@@ -338,6 +338,8 @@ replaceMarkerInFiles() {
 			sed -i "s|###hostgroup###|$HOST_GROUP|g" "$file"
 			sed -i "s|###hostgroupid###|$HOST_GROUPID|g" "$file"
 			sed -i "s|###local_domain###|$DOC_LOCAL_DOMAIN|g" "$file"
+		else
+			errout "file ${file} does not exist or is not writable"
 		fi
 	done
 }
@@ -374,26 +376,26 @@ dockerin() {
 # If 2 arguments are given, the first is the service and the second is the command.
 ##
 dockerexec() {
-    case "$#" in
-        3)
-            initEnvironment "$1"
-            shift
-            SERVICE=$1
-            shift
-            ;;
-        2)
-            initEnvironment
-            SERVICE=$1
-            shift
-            ;;
-        1)
-            initEnvironment
-            SERVICE="web"
-            ;;
-        *)
-            info "usage: doc exec COMMAND"
-            errout "need at lease one command but at most 3 arguments"
-    esac
+	case "$#" in
+		3)
+			initEnvironment "$1"
+			shift
+			SERVICE=$1
+			shift
+			;;
+		2)
+			initEnvironment
+			SERVICE=$1
+			shift
+			;;
+		1)
+			initEnvironment
+			SERVICE="web"
+			;;
+		*)
+			info "usage: doc exec COMMAND"
+			errout "need at lease one command but at most 3 arguments"
+	esac
 
 	info "exec '$@' in service '$SERVICE' in container '${DOC_PROJECT_NAME}_${SERVICE}_${ENVIRONMENT}'"
 
@@ -405,18 +407,18 @@ dockerexec() {
 ### Helper Methods
 
 increment_version (){
-  declare -a part=( ${1//\./ } )
-  declare    new
-  declare -i carry=1
+	declare -a part=( ${1//\./ } )
+	declare    new
+	declare -i carry=1
 
-  for (( CNTR=${#part[@]}-1; CNTR>=0; CNTR-=1 )); do
-    len=${#part[CNTR]}
-    new=$((part[CNTR]+carry))
-    [ ${#new} -gt $len ] && carry=1 || carry=0
-    [ $CNTR -gt 0 ] && part[CNTR]=${new: -len} || part[CNTR]=${new}
-  done
-  new="${part[*]}"
-  echo -e "${new// /.}"
+	for (( CNTR=${#part[@]}-1; CNTR>=0; CNTR-=1 )); do
+	len=${#part[CNTR]}
+	new=$((part[CNTR]+carry))
+	[ ${#new} -gt $len ] && carry=1 || carry=0
+	[ $CNTR -gt 0 ] && part[CNTR]=${new: -len} || part[CNTR]=${new}
+	done
+	new="${part[*]}"
+	echo -e "${new// /.}"
 }
 
 self_update() {
@@ -453,19 +455,19 @@ self_update() {
 #	output_file="yes"
 ##
 function parse_yaml {
-   local prefix=$2
-   local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
-   sed -ne "s|^\($s\):|\1|" \
-        -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
-        -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $1 |
-   awk -F$fs '{
-      indent = length($1)/2;
-      vname[indent] = $2;
-      for (i in vname) {if (i > indent) {delete vname[i]}}
-      if (length($3) > 0) {
-         vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
-         printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
-      }
+	local prefix=$2
+	local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
+	sed -ne "s|^\($s\):|\1|" \
+		-e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
+		-e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $1 |
+	awk -F$fs '{
+	  indent = length($1)/2;
+	  vname[indent] = $2;
+	  for (i in vname) {if (i > indent) {delete vname[i]}}
+	  if (length($3) > 0) {
+		 vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+		 printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
+	  }
    }'
 }
 
@@ -496,8 +498,8 @@ ask() {
 }
 
 if [ -f "$DOC_SETTINGS" ]; then
-    source "$DOC_SETTINGS"
-    export DOC_SETTINGS
+	source "$DOC_SETTINGS"
+	export DOC_SETTINGS
 fi
 
 ### Main
