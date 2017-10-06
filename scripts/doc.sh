@@ -2,12 +2,13 @@
 set -e
 
 ###
-# doc - Docker Operation Control
+# doc - Do Op Cheating
 ###
 
 VERSION=0.11
 
 DOCKER_COMPOSE_FILE="docker-compose.yml"
+DOCKER_COMPOSE_CRED_FILE="docker-compose.credentials.yml"
 DOC_DOCKERFILE_PROD="./dockerfiles/Dockerfile-prod"
 DOC_DOCKERFILE_FOLDER="./dockerfiles"
 DOC_VHOST_CONFIG_FOLDER="./config"
@@ -34,7 +35,7 @@ showhelp() {
 	out "exec [[environment] service] COMMAND \t - executes a COMMAND in a container service with user privileges"
 	out "suexec [[environment] service] COMMAND \t - executes a COMMAND in a container service with root privileges"
 	out "deploy \t\t\t\t\t - build, tag and deploy to remote repo"
-	out "initproject [projectname] [git url] \t - initialize a new project"
+	out "init [projectname] [git url] [typo3 Version] \t - initialize a new project"
 	out "logs [environment] [nginx|web] \t\t - show log output of all or specific container [web, typo3-db, nginx] with given environment."
 	out "reinit [projectname] \t\t\t - rewrite all Docker- and docker-composer files from templates"
 	out "self-update \t\t\t\t - run self update and pull latest version"
@@ -100,8 +101,11 @@ checkIfComposeFilesExistByEnvironment() {
 	if [ ! -f "docker-compose.$1.yml" ]; then
 		errout "configuration file docker-compose.$1.yml not found in current dir"
 	fi
-	if [ ! -f $DOCKER_COMPOSE_FILE ]; then
+	if [ ! -f ${DOCKER_COMPOSE_FILE} ]; then
 		errout "configuration file docker-compose.yml not found in current dir"
+	fi
+	if [ ! -f ${DOCKER_COMPOSE_CRED_FILE} ]; then
+		warnout "configuration file ${DOCKER_COMPOSE_CRED_FILE} not found in current dir"
 	fi
 }
 
@@ -129,12 +133,14 @@ dockerup() {
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" up -d $@
+
+	dockerComposeCmd up -d $@
+#	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" -f "docker-compose.cred.yml" up -d $@
 }
 
 dockerdown() {
-    	out "Stopping and remove all containers"
-    	docker-compose down $@
+		out "Stopping and remove all containers"
+		dockerComposeCmd down $@
 }
 
 dockerstop() {
@@ -143,8 +149,7 @@ dockerstop() {
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	out "Stopping container for docker-compose.$ENVIRONMENT.yml"
-    	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" stop $@
+	dockerComposeCmd stop $@
 }
 
 ##
@@ -156,7 +161,7 @@ dockerps() {
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" ps $@
+	dockerComposeCmd ps $@
 }
 
 dockerip() {
@@ -211,7 +216,8 @@ dockerin() {
 	fi
 
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" exec --user "$HOST_USER" $SERVICE bash
+	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" \
+		-f "docker-compose.$ENVIRONMENT.yml" exec --user "$HOST_USER" $SERVICE bash
 }
 
 ##
@@ -262,9 +268,9 @@ dockerexec() {
 
 	#execute command with or without user privileges
 	if (( withUserPriv == 1 )); then
-		dockerComposeExec exec --user "$HOST_USER" "$SERVICE" $@
+		dockerComposeCmd exec --user "$HOST_USER" "$SERVICE" $@
 	else
-		dockerComposeExec exec "$SERVICE" $@
+		dockerComposeCmd exec "$SERVICE" $@
 
 	fi
 }
@@ -272,6 +278,7 @@ dockerexec() {
 initproject() {
 	DOC_PROJECT_NAME=$1
 	GIT_REPO=$2
+	TYPO3_VERSION=$3
 	initsettings "$DOC_PROJECT_NAME"
 
 	if [ -z "$DOC_PROJECT_NAME" ]; then
@@ -285,12 +292,15 @@ initproject() {
 	fi
 	
 	info "init project \"$DOC_FULL_NAME\""
-	initConfigurationFiles
+	if [ -d "./template" ]; then
+		info "copy template files"
+		initConfigurationFiles
+	fi
 
 	#initialize all deps before start building
 	if [ -f "scripts/init.sh" ]; then
-	    info "run init.sh"
-	    scripts/init.sh ${GIT_REPO}
+		info "run init.sh"
+		scripts/init.sh ${GIT_REPO} ${TYPO3_VERSION}
 	fi
 
 	info "start building project"
@@ -341,22 +351,6 @@ initsettings() {
 		echo "DOC_FULL_NAME=\"$DOC_FULL_NAME\"" >> "$DOC_SETTINGS"
 	fi
 
-	if [ -z "$DOC_GITHUB_OAUTH" ]; then
-		while [ -z "$DOC_GITHUB_OAUTH" ]; do
-			ask "github oauth token? [DOC_GITHUB_OAUTH]"
-			read DOC_GITHUB_OAUTH
-		done
-		echo "DOC_GITHUB_OAUTH=\"$DOC_GITHUB_OAUTH\"" >> "$DOC_SETTINGS"
-	fi
-
-	if [ -z "$DOC_SSH_KEY_FILE" ]; then
-		while [ -z "$DOC_SSH_KEY_FILE" ]; do
-			ask "path to ssh key file? [DOC_SSH_KEY_FILE]"
-			read DOC_SSH_KEY_FILE
-		done
-		echo "DOC_SSH_KEY_FILE=\"$DOC_SSH_KEY_FILE\"" >> "$DOC_SETTINGS"
-	fi
-
 	if [ -z "$HOST_USER" ]; then
 		while [ -z "$HOST_USER" ]; do
 			ask "username for shared source dir (aka your username)? [HOST_USER]"
@@ -402,8 +396,6 @@ replaceMarkerInFiles() {
 			sed -i "s|###projectname###|$DOC_PROJECT_NAME|g" "$file"
 			sed -i "s|###username###|$DOC_USERNAME|g" "$file"
 			sed -i "s|###repohost###|$DOC_REPO|g" "$file"
-			sed -i "s|###github_oauth###|$DOC_GITHUB_OAUTH|g" "$file"
-			sed -i "s|###ssh_key_file###|$DOC_SSH_KEY_FILE|g" "$file"
 			sed -i "s|###ssh_auth_sock###|$SSH_AUTH_SOCK|g" "$file"
 			sed -i "s|###hostuser###|$HOST_USER|g" "$file"
 			sed -i "s|###hostuserid###|$HOST_USERID|g" "$file"
@@ -427,15 +419,21 @@ initConfigurationFiles() {
 	replaceMarkerInFiles "$DOC_VHOST_CONFIG_FOLDER/apache-vhost*"
 }
 
-### Helper Methods
-
 ##
-# execute a docker compose command with the given environment and config files
+# Execute a docker compose command with the given environment, config files and credentials.
 ##
-dockerComposeExec() {
-	eval "${DOCKER_COMPOSE_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
-		-f docker-compose.${ENVIRONMENT}.yml" $@
+dockerComposeCmd() {
+	if [ -f ${DOCKER_COMPOSE_CRED_FILE} ]; then
+		eval "${DOCKER_COMPOSE_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
+			-f docker-compose.${ENVIRONMENT}.yml" -f ${DOCKER_COMPOSE_CRED_FILE} $@
+	else
+		eval "${DOCKER_COMPOSE_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
+			-f docker-compose.${ENVIRONMENT}.yml" $@
+	fi
 }
+
+
+### Helper Methods
 
 increment_version (){
 	declare -a part=( ${1//\./ } )
@@ -546,6 +544,7 @@ case "$1" in
 	"suexec") shift; dockerexec "$@" ;;
 	"in") shift; out "starting bash..."; dockerin $@ ;;
 	"deploy") out "starting deployment"; dockerdeploy "$2" "$3" ;;
+	"init") ;&
 	"initproject") shift; initproject $@ ;;
 	"logs") shift; dockerlogs $@ ;;
 	"reinit") shift; out "reinit all Dockerfiles"; initsettings $@ && initConfigurationFiles ;;
