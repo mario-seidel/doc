@@ -139,8 +139,13 @@ dockerup() {
 }
 
 dockerdown() {
-		out "Stopping and remove all containers"
-		dockerComposeCmd down $@
+    out "Stopping and remove all containers"
+    initEnvironment "$1"
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
+		shift;
+	fi
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+    dockerComposeCmd down $@
 }
 
 dockerstop() {
@@ -174,6 +179,11 @@ conteinerstatus() {
 	echo $(docker inspect -f '{{ .State.Status}}' ${CONTAINER_ID})
 }
 
+conteinername() {
+	CONTAINER_ID="$1"
+	echo $(docker inspect -f '{{ .Name}}' ${CONTAINER_ID})
+}
+
 containerports() {
 	CONTAINER_ID="$1"
 	echo $(docker port ${CONTAINER_ID})
@@ -192,16 +202,23 @@ dockerlogs() {
 # shows status information about a container
 ##
 dockerstatus() {
+	DOC_SERVICE="${1:-web}"
+
 	source "$DOC_SETTINGS"
 	initsettings ${DOC_PROJECT_NAME}
-	LOCAL_CONTAINER="${DOC_PROJECT_NAME}_web_local"
+
+	LOCAL_CONTAINER=$(dockerps local -q ${DOC_SERVICE})
+	CONTAINER_NAME=$(conteinername ${LOCAL_CONTAINER})
 	WEB_IP=$(dockerip ${LOCAL_CONTAINER})
 	STATE=$(conteinerstatus ${LOCAL_CONTAINER})
-	info "container: $LOCAL_CONTAINER"
+	info "name: $CONTAINER_NAME"
+	info "id: $LOCAL_CONTAINER"
 	info "status: $STATE"
 	info "IP: $WEB_IP"
 	info "ports: $(containerports ${LOCAL_CONTAINER})"
-	info "URL: http://$DOC_PROJECT_NAME.$DOC_LOCAL_DOMAIN"
+
+	URL=$(docker inspect -f '{{range $index, $value := .Config.Env}}{{if eq (index (split $value "=") 0) "VIRTUAL_HOST" }}{{range $i, $part := (split $value "=")}}{{if gt $i 1}}{{print "="}}{{end}}{{if gt $i 0}}{{print $part}}{{end}}{{end}}{{end}}{{end}}' ${LOCAL_CONTAINER})
+	info "URL: http://$URL"
 }
 
 dockerin() {
@@ -279,6 +296,7 @@ initproject() {
 	DOC_PROJECT_NAME=$1
 	GIT_REPO=$2
 	TYPO3_VERSION=$3
+
 	initsettings "$DOC_PROJECT_NAME"
 
 	if [ -z "$DOC_PROJECT_NAME" ]; then
@@ -309,12 +327,10 @@ initproject() {
 
 	if [ -n ${NGINX_CONTAINER} ]; then
 		NGINX_IP=$(dockerip "$NGINX_CONTAINER")
-		out "please add $NGINX_IP to your /etc/hosts or run this:"
-		out "echo -e \"$NGINX_IP\\\t${DOC_PROJECT_NAME}.${DOC_LOCAL_DOMAIN}\" | sudo tee -a /etc/hosts"
+		out "please add $NGINX_IP to your /etc/hosts or use dnsmasq."
 	else
 		WEB_IP=$(dockerip "${DOC_PROJECT_NAME}_web_local")
-		out "please add IP $WEB_IP to your /etc/hosts or run this:"
-		out "echo -e \"$WEB_IP\\\t${DOC_PROJECT_NAME}.${DOC_LOCAL_DOMAIN}\" | sudo tee -a/etc/hosts"
+		out "please add IP $WEB_IP to your /etc/hosts or use dnsmasq."
 	fi
 }
 
@@ -328,11 +344,11 @@ initsettings() {
 
 	if [ -z "$DOC_USERNAME" ]; then
 		while [ -z "$DOC_USERNAME" ]; do
-			ask "user / company name? [DOC_USERNAME]"
+			ask "user / company name? (dmk)"
 			read DOC_USERNAME
 		done
 
-		ask "docker regestry server (repo.domain.de:5000)? [DOC_REPO]"
+		ask "docker regestry server (repo.domain.de:5000)?"
 		read DOC_REPO
 
 		if [ -n "$DOC_REPO" ]; then
@@ -351,12 +367,12 @@ initsettings() {
 		echo "DOC_FULL_NAME=\"$DOC_FULL_NAME\"" >> "$DOC_SETTINGS"
 	fi
 
-	if [ -z "$HOST_USER" ]; then
-		while [ -z "$HOST_USER" ]; do
-			ask "username for shared source dir (aka your username)? [HOST_USER]"
-			read HOST_USER
+	if [ -z "$HOST_USERID" ]; then
+		while [ -z "$HOST_USERID" ]; do
+			ask "your user id? ($(id -u))"
+			read HOST_USERID
 		done
-		HOST_USERID=$(id -u ${HOST_USER})
+		HOST_USER="docker"
 		if [ ${HOST_USERID} -le 0  ]; then
 			errout "user $HOST_USER does not exists"
 		fi
@@ -364,26 +380,17 @@ initsettings() {
 		echo "HOST_USERID=$HOST_USERID" >> "$DOC_SETTINGS"
 	fi
 
-	if [ -z "$HOST_GROUP" ]; then
-		while [ -z "$HOST_GROUP" ]; do
-			ask "usergroup for shared source dir (aka your usergroup)? [HOST_GROUP]"
-			read HOST_GROUP
+	if [ -z "$HOST_GROUPID" ]; then
+		while [ -z "$HOST_GROUPID" ]; do
+			ask "your group id? ($(id -g))"
+			read HOST_GROUPID
 		done
-		HOST_GROUPID=$(id -g ${HOST_USER})
+		HOST_GROUP="docker"
 		if [ ${HOST_GROUPID} -le 0 ]; then
 			errout "user $HOST_GROUP does not exists"
 		fi
 		echo "HOST_GROUP=\"$HOST_GROUP\"" >> "$DOC_SETTINGS"
 		echo "HOST_GROUPID=$HOST_GROUPID" >> "$DOC_SETTINGS"
-	fi
-
-	if [ -z "$DOC_LOCAL_DOMAIN" ]; then
-		while [ -z "$DOC_LOCAL_DOMAIN" ]; do
-			ask "local TLD without dot (default is 'local') ? [DOC_LOCAL_DOMAIN]"
-			read DOC_LOCAL_DOMAIN
-			DOC_LOCAL_DOMAIN=${DOC_LOCAL_DOMAIN:-local}
-		done
-		echo "DOC_LOCAL_DOMAIN=\"$DOC_LOCAL_DOMAIN\"" >> "$DOC_SETTINGS"
 	fi
 
 	source "$DOC_SETTINGS"
@@ -401,7 +408,6 @@ replaceMarkerInFiles() {
 			sed -i "s|###hostuserid###|$HOST_USERID|g" "$file"
 			sed -i "s|###hostgroup###|$HOST_GROUP|g" "$file"
 			sed -i "s|###hostgroupid###|$HOST_GROUPID|g" "$file"
-			sed -i "s|###local_domain###|$DOC_LOCAL_DOMAIN|g" "$file"
 		else
 			errout "file ${file} does not exist or is not writable"
 		fi
@@ -504,7 +510,7 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 ORANGE='\033[0;33m'
 NC='\033[0m' # No Color
-	
+
 out() {
 	echo -e "$@"
 }
@@ -538,7 +544,7 @@ case "$1" in
 	"up") out "docker up"; dockerup "$2" ;;
 	"down") out "docker down"; shift; dockerdown $@ ;;
 	"stop") out "docker stop"; shift; dockerstop $@ ;;
-	"status") out "container status:"; shift; dockerstatus ;;
+	"status") out "container status:"; shift; dockerstatus $@ ;;
 	"ps") shift; dockerps $@ ;;
 	"exec") shift; dockerexec -u "$@" ;;
 	"suexec") shift; dockerexec "$@" ;;
