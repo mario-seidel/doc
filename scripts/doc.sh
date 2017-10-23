@@ -124,7 +124,8 @@ dockerbuild() {
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f $DOCKER_COMPOSE_FILE -f "docker-compose.$ENVIRONMENT.yml" build --force-rm $@
+	dockerComposeCmd build --force-rm $@
+#	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f $DOCKER_COMPOSE_FILE -f "docker-compose.$ENVIRONMENT.yml" build --force-rm $@
 }
 
 dockerup() {
@@ -195,7 +196,7 @@ dockerlogs() {
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" logs -f $@
+	dockerComposeCmd logs -f $@
 }
 
 ##
@@ -233,8 +234,8 @@ dockerin() {
 	fi
 
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" \
-		-f "docker-compose.$ENVIRONMENT.yml" exec --user "$HOST_USER" $SERVICE bash
+	dockerComposeCmd exec --user "$HOST_USER" "$SERVICE" bash
+#	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" exec --user "$HOST_USER" $SERVICE bash
 }
 
 ##
@@ -288,7 +289,6 @@ dockerexec() {
 		dockerComposeCmd exec --user "$HOST_USER" "$SERVICE" $@
 	else
 		dockerComposeCmd exec "$SERVICE" $@
-
 	fi
 }
 
@@ -429,6 +429,8 @@ initConfigurationFiles() {
 # Execute a docker compose command with the given environment, config files and credentials.
 ##
 dockerComposeCmd() {
+	echo "'${DOCKER_COMPOSE_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
+			-f docker-compose.${ENVIRONMENT}.yml' -f ${DOCKER_COMPOSE_CRED_FILE} $@"
 	if [ -f ${DOCKER_COMPOSE_CRED_FILE} ]; then
 		eval "${DOCKER_COMPOSE_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
 			-f docker-compose.${ENVIRONMENT}.yml" -f ${DOCKER_COMPOSE_CRED_FILE} $@
