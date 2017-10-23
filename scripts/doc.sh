@@ -19,6 +19,12 @@ ENVIRONMENT=
 IS_DEFAULT_ENVIRONMENT=0
 DOCKER_COMPOSE_CMD=$(which docker-compose)
 
+### check winpty usage ()
+WINPTY_CMD=$(which winpty)
+if [ "$WINPTY_CMD" ] ; then
+    DOCKER_COMPOSE_CMD="$WINPTY_CMD $DOCKER_COMPOSE_CMD"
+fi
+
 showhelp() {
 	out ""
 	out "doc $VERSION"
@@ -429,8 +435,6 @@ initConfigurationFiles() {
 # Execute a docker compose command with the given environment, config files and credentials.
 ##
 dockerComposeCmd() {
-	echo "'${DOCKER_COMPOSE_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
-			-f docker-compose.${ENVIRONMENT}.yml' -f ${DOCKER_COMPOSE_CRED_FILE} $@"
 	if [ -f ${DOCKER_COMPOSE_CRED_FILE} ]; then
 		eval "${DOCKER_COMPOSE_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
 			-f docker-compose.${ENVIRONMENT}.yml" -f ${DOCKER_COMPOSE_CRED_FILE} $@
