@@ -35,6 +35,7 @@ showhelp() {
 	out "up [environment] \t\t\t - run docker-compose with given environment. default is local if none given."
 	out "down \t\t\t\t\t - stop all containers an remove them"
 	out "stop [environment] \t\t\t - stop container with given environment. default is local if none given."
+	out "restart [environment [service]] \t - stop container and start all or one container service."
 	out "status \t\t\t\t\t - shows status informations about current web container"
 	out "in \t\t\t\t\t - start bash in given service (second argument, default is web) for given environment (first argument, default is local)"
 	out "ps \t\t\t\t\t - show process list of all containers"
@@ -551,6 +552,8 @@ case "$1" in
 	"down") out "docker down"; shift; dockerdown $@ ;;
 	"stop") out "docker stop"; shift; dockerstop $@ ;;
 	"status") out "container status:"; shift; dockerstatus $@ ;;
+	"restart") out "docker restart"; shift; dockerstop $@ && dockerup $@ ;;
+	"status") out "container status:"; shift; dockerstatus ;;
 	"ps") shift; dockerps $@ ;;
 	"exec") shift; dockerexec -u "$@" ;;
 	"suexec") shift; dockerexec "$@" ;;
