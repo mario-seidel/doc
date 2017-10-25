@@ -20,9 +20,9 @@ IS_DEFAULT_ENVIRONMENT=0
 DOCKER_COMPOSE_CMD=$(which docker-compose)
 
 ### check winpty usage ()
-WINPTY_CMD=$(which winpty)
-if [ "$WINPTY_CMD" ] ; then
-    DOCKER_COMPOSE_CMD="$WINPTY_CMD $DOCKER_COMPOSE_CMD"
+WINPTY_CMD=$(which time 2>/dev/null || true)
+if [ "$WINPTY_CMD" ]; then
+	DOCKER_COMPOSE_CMD="$WINPTY_CMD $DOCKER_COMPOSE_CMD"
 fi
 
 showhelp() {
