@@ -18,6 +18,7 @@ NGINX_CONTAINER="nginx"
 ENVIRONMENT=
 IS_DEFAULT_ENVIRONMENT=0
 DOCKER_COMPOSE_CMD=$(which docker-compose)
+DOC_ALLOWED_ENV="local test alpha beta prod"
 
 ### check winpty usage ()
 WINPTY_CMD=$(which winpty 2>/dev/null || true)
@@ -117,7 +118,12 @@ checkIfComposeFilesExistByEnvironment() {
 }
 
 initEnvironment() {
-	ENVIRONMENT=$1
+	for allowedEnv in ${DOC_ALLOWED_ENV}; do
+		if [ "$1" == ${allowedEnv} ]; then
+			ENVIRONMENT=$1
+			break
+		fi
+	done
 
 	if [ -z "$ENVIRONMENT" ]; then
 		ENVIRONMENT="local"
@@ -147,13 +153,14 @@ dockerup() {
 }
 
 dockerdown() {
-    out "Stopping and remove all containers"
     initEnvironment "$1"
 	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
 		shift;
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-    dockerComposeCmd down $@
+
+	out "Stopping and remove all containers for $ENVIRONMENT"
+	dockerComposeCmd down $@
 }
 
 dockerstop() {
@@ -553,6 +560,7 @@ case "$1" in
 	"stop") out "docker stop"; shift; dockerstop $@ ;;
 	"status") out "container status:"; shift; dockerstatus $@ ;;
 	"restart") out "docker restart"; shift; dockerstop $@ && dockerup $@ ;;
+	"rebuild") out "docker rebuild"; shift; dockerdown --rmi all && dockerup --build ;;
 	"status") out "container status:"; shift; dockerstatus ;;
 	"ps") shift; dockerps $@ ;;
 	"exec") shift; dockerexec -u "$@" ;;
