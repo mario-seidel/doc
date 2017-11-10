@@ -5,7 +5,7 @@ set -e
 # doc - Do Op Cheating
 ###
 
-VERSION=0.11
+VERSION=0.12
 
 DOCKER_COMPOSE_FILE="docker-compose.yml"
 DOCKER_COMPOSE_CRED_FILE="docker-compose.credentials.yml"
@@ -29,25 +29,44 @@ fi
 showhelp() {
 	out ""
 	out "doc $VERSION"
-	out "========================================"
+	out "================================================================================"
 	out "Commands:"
-	out "build [environment] \t\t\t - building an image with given environment. default is local if none given."
-	out "tag \t\t\t\t\t - build and tag an image"
-	out "up [environment] \t\t\t - run docker-compose with given environment. default is local if none given."
-	out "down \t\t\t\t\t - stop all containers an remove them"
-	out "stop [environment] \t\t\t - stop container with given environment. default is local if none given."
-	out "restart [environment [service]] \t - stop container and start all or one container service."
-	out "status \t\t\t\t\t - shows status informations about current web container"
-	out "in \t\t\t\t\t - start bash in given service (second argument, default is web) for given environment (first argument, default is local)"
-	out "ps \t\t\t\t\t - show process list of all containers"
-	out "exec [[environment] service] COMMAND \t - executes a COMMAND in a container service with user privileges"
-	out "suexec [[environment] service] COMMAND \t - executes a COMMAND in a container service with root privileges"
-	out "deploy \t\t\t\t\t - build, tag and deploy to remote repo"
-	out "init [projectname] [git url] [typo3 Version] \t - initialize a new project"
-	out "logs [environment] [nginx|web] \t\t - show log output of all or specific container [web, typo3-db, nginx] with given environment."
-	out "reinit [projectname] \t\t\t - rewrite all Docker- and docker-composer files from templates"
-	out "self-update \t\t\t\t - run self update and pull latest version"
-	out ""
+	out "  build [environment]"
+	out "        building an image with given environment."
+	out "        default is local if none given."
+	out "  tag"
+	out "        build and tag an image"
+	out "  up [environment]"
+	out "        run docker-compose with given environment."
+	out "        default is local if none given."
+	out "  down"
+	out "        stop all containers an remove them"
+	out "  stop [environment]"
+	out "        stop container with given environment."
+	out "        default is local if none given."
+	out "  restart [environment [service]]"
+	out "        stop container and start all or one container service."
+	out "  status"
+	out "        shows status informations about current web container"
+	out "  in"
+	out "        start bash in given service (second argument, default is web)"
+	out "        for given environment (first argument, default is local)"
+	out "  ps"
+	out "        show process list of all containers"
+	out "  exec [[environment] service] COMMAND"
+	out "        executes a COMMAND in a container service with user privileges"
+	out "  suexec [[environment] service] COMMAND"
+	out "        executes a COMMAND in a container service with root privileges"
+	out "  deploy"
+	out "        build, tag and deploy to remote repo"
+	out "  init [projectname] [git url] [typo3 Version]"
+	out "        initialize a new project"
+	out "  logs [environment] [nginx|web]"
+	out "        show log output of all or specific container [web, typo3-db, nginx] with given environment."
+	out "  reinit [projectname]"
+	out "        rewrite all Docker- and docker-composer files from templates"
+	out "  self-update"
+	out "        run self update and pull latest version"
 }
 
 ### Docker Commands
@@ -307,9 +326,13 @@ dockerexec() {
 }
 
 initproject() {
-	DOC_PROJECT_NAME=$1
-	GIT_REPO=$2
-	TYPO3_VERSION=$3
+	### only for backward compatibility START
+	if [ -z "$1" ]; then
+		DOC_PROJECT_NAME=$1
+		GIT_REPO=$2
+		DOC_WEBSERVERIMAGE_VERSION=${3:-7.1}
+	fi
+	### only for backward compatibility START
 
 	initsettings "$DOC_PROJECT_NAME"
 
@@ -332,7 +355,7 @@ initproject() {
 	#initialize all deps before start building
 	if [ -f "scripts/init.sh" ]; then
 		info "run init.sh"
-		scripts/init.sh ${GIT_REPO} ${TYPO3_VERSION}
+		scripts/init.sh
 	fi
 
 	info "start building project"
@@ -340,12 +363,11 @@ initproject() {
 		info "===========\n$DOC_FULL_NAME was built successfully\n\n"
 
 	if [ -n ${NGINX_CONTAINER} ]; then
-		NGINX_IP=$(dockerip "$NGINX_CONTAINER")
-		out "please add $NGINX_IP to your /etc/hosts or use dnsmasq."
+		WEB_IP=$(dockerip "$NGINX_CONTAINER")
 	else
 		WEB_IP=$(dockerip "${DOC_PROJECT_NAME}_web_local")
-		out "please add IP $WEB_IP to your /etc/hosts or use dnsmasq."
 	fi
+	out "please add the ip '$WEB_IP' for your domain '$DOC_PROJECT_NAME.$DOC_LOCAL_DOMAIN' to your /etc/hosts or use dnsmasq."
 }
 
 initsettings() {
@@ -353,8 +375,10 @@ initsettings() {
 		touch "$DOC_SETTINGS"
 	fi
 	source "$DOC_SETTINGS"
-
-	DOC_PROJECT_NAME="$1"
+	
+	if [ ! -z "$1" ]; then
+		DOC_PROJECT_NAME="$1"
+	fi
 
 	if [ -z "$DOC_USERNAME" ]; then
 		while [ -z "$DOC_USERNAME" ]; do
