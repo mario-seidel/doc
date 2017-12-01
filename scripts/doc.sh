@@ -31,10 +31,10 @@ showhelp() {
 	out "status \t\t\t\t\t - shows status informations about current web container"
 	out "in \t\t\t\t\t - start bash in given service (second argument, default is web) for given environment (first argument, default is local)"
 	out "ps \t\t\t\t\t - show process list of all containers"
-	out "exec [[environment] service] COMMAND \t - executes a COMMAND in a container service with user privileges"
-	out "suexec [[environment] service] COMMAND \t - executes a COMMAND in a container service with root privileges"
+	out "exec [environment] [service] COMMAND \t - executes a COMMAND in a container service with user privileges. default environment is local"
+	out "suexec [environment] [service] COMMAND \t - executes a COMMAND in a container service with root privileges. default environment is local"
 	out "deploy \t\t\t\t\t - build, tag and deploy to remote repo"
-	out "initproject [projectname] [git url] \t - initialize a new project"
+	out "initproject [projectname] [git url] [environment] \t - initialize a new project. default environment is local"
 	out "logs [environment] [nginx|web] \t\t - show log output of all or specific container [web, typo3-db, nginx] with given environment."
 	out "reinit [projectname] \t\t\t - rewrite all Docker- and docker-composer files from templates"
 	out "self-update \t\t\t\t - run self update and pull latest version"
@@ -293,8 +293,10 @@ initproject() {
 	    scripts/init.sh ${GIT_REPO}
 	fi
 
+	initEnvironment "$3"
+
 	info "start building project"
-	dockerup local &&
+	dockerup $ENVIRONMENT &&
 		info "===========\n$DOC_FULL_NAME was built successfully\n\n"
 
 	if [ -n ${NGINX_CONTAINER} ]; then
