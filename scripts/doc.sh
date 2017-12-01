@@ -292,7 +292,7 @@ initproject() {
 	    info "run init.sh"
 	    scripts/init.sh ${GIT_REPO}
 
-	    if [ $? -eq 0 ]; then
+	    if [ $? -ne 0 ]; then
 	        echo "run init.sh failed: $?"
 	        exit;
 	    fi
