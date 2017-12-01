@@ -34,7 +34,7 @@ showhelp() {
 	out "exec [environment] [service] COMMAND \t - executes a COMMAND in a container service with user privileges. default environment is local"
 	out "suexec [environment] [service] COMMAND \t - executes a COMMAND in a container service with root privileges. default environment is local"
 	out "deploy \t\t\t\t\t - build, tag and deploy to remote repo"
-	out "initproject [projectname] [git url] [environment] \t - initialize a new project. default environment is local"
+	out "initproject [projectname] [git url] [environment] \t - initialize a new project. default environment is local. When no repo should be checked out, just pass -n as git url"
 	out "logs [environment] [nginx|web] \t\t - show log output of all or specific container [web, typo3-db, nginx] with given environment."
 	out "reinit [projectname] \t\t\t - rewrite all Docker- and docker-composer files from templates"
 	out "self-update \t\t\t\t - run self update and pull latest version"
