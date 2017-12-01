@@ -291,6 +291,11 @@ initproject() {
 	if [ -f "scripts/init.sh" ]; then
 	    info "run init.sh"
 	    scripts/init.sh ${GIT_REPO}
+
+	    if [ $? -eq 0 ]; then
+	        echo "run init.sh failed: $?"
+	        exit;
+	    fi
 	fi
 
 	initEnvironment "$3"
