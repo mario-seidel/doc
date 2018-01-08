@@ -23,7 +23,7 @@ DOC_ALLOWED_ENV="local test alpha beta prod"
 
 ### check winpty usage ()
 WINPTY_CMD=$(which winpty 2>/dev/null || true)
-## set globaly if DOC_USE_WINPTY is set
+### set globaly if DOC_USE_WINPTY is set
 if [ -n "${DOC_USE_WINPTY+set}" ]; then
 	if [ "$WINPTY_CMD" ]; then
 		DOCKER_COMPOSE_CMD="$WINPTY_CMD $DOCKER_COMPOSE_CMD"
@@ -82,7 +82,7 @@ showhelp() {
 
 ### Docker Commands
 dockerdeploy() {
-    IMAGE_NAME="$1"
+	IMAGE_NAME="$1"
 	CUR_VERSION=$(get_current_version $IMAGE_NAME)
 
 	if [ -z "$CUR_VERSION" ]; then
@@ -92,7 +92,7 @@ dockerdeploy() {
 
 	info "Deploying image $IMAGE_NAME with version $CUR_VERSION to $DOC_REPO...\n"
 
-	#push image to remote docker repo
+	### push image to remote docker repo
 	docker -D -l=debug push "$DOC_REPO/$IMAGE_NAME"
 }
 
@@ -122,10 +122,10 @@ buildandtag() {
 	NEW_VERSION=$(increment_version $CUR_VERSION)
 	NEW_IMAGE_NAME="$DOC_REPO/$IMAGE_NAME:$NEW_VERSION"
 
-	#name and build image in SOURCE_DIR and tag builded image
-	#use no cache, we want all to be fresh when deploying
+	### name and build image in SOURCE_DIR and tag builded image
+	### use no cache, we want all to be fresh when deploying
 	docker build -t $NEW_IMAGE_NAME -f "$DOC_DOCKERFILE_PROD" --no-cache . >&2 &&
-#	docker tag "$NEW_IMAGE_NAME" "$DOC_REPO/$NEW_IMAGE_NAME" >&2
+	#docker tag "$NEW_IMAGE_NAME" "$DOC_REPO/$NEW_IMAGE_NAME" >&2
 
 	if [ $? -eq 0 ]; then
 		sed -i "s|\(.*image:\s*$DOC_REPO/$IMAGE_NAME:\)$CUR_VERSION|\1$NEW_VERSION|g" "$DOCKER_COMPOSE_FILE"
@@ -168,7 +168,6 @@ dockerbuild() {
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 	dockerComposeCmd build --force-rm $@
-#	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f $DOCKER_COMPOSE_FILE -f "docker-compose.$ENVIRONMENT.yml" build --force-rm $@
 }
 
 dockerup() {
@@ -179,11 +178,10 @@ dockerup() {
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 
 	dockerComposeCmd up -d $@
-#	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" -f "docker-compose.cred.yml" up -d $@
 }
 
 dockerdown() {
-    initEnvironment "$1"
+	initEnvironment "$1"
 	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
 		shift;
 	fi
@@ -279,7 +277,6 @@ dockerin() {
 
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 	dockerComposeCmd exec --user "$HOST_USER" "$SERVICE" bash
-#	docker-compose -p "${DOC_PROJECT_NAME}_$ENVIRONMENT" -f "$DOCKER_COMPOSE_FILE" -f "docker-compose.$ENVIRONMENT.yml" exec --user "$HOST_USER" $SERVICE bash
 }
 
 ##
@@ -328,7 +325,7 @@ dockerexec() {
 
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 
-	#execute command with or without user privileges
+	### execute command with or without user privileges
 	if (( withUserPriv == 1 )); then
 		dockerComposeCmd exec --user "$HOST_USER" "$SERVICE" $@
 	else
@@ -381,13 +378,13 @@ initproject() {
 		initConfigurationFiles
 	fi
 
-	#initialize all deps before start building
+	### initialize all deps before start building
 	if [ -f "scripts/init.sh" ]; then
 		info "run init.sh"
 		scripts/init.sh
 	fi
 
-    #initialize all deps before start building
+	### initialize all deps before start building
 	if [ -f "web/scripts/init.sh" ]; then
 		info "run init.sh"
 		web/scripts/init.sh
@@ -470,6 +467,7 @@ initsettings() {
 	export DOC_SETTINGS
 }
 
+### deprecated, only for old template structure
 replaceMarkerInFiles() {
 	for file in $1; do
 		if [ -w "$file" ]; then
@@ -487,6 +485,7 @@ replaceMarkerInFiles() {
 	done
 }
 
+### deprecated, only for old template structure
 initConfigurationFiles() {
 	cp ./template/docker-compose* .
 	cp ./template/Dockerfile* dockerfiles/
@@ -520,7 +519,6 @@ dockerComposeCmd() {
 
 
 ### Helper Methods
-
 increment_version (){
 	declare -a part=( ${1//\./ } )
 	declare    new
