@@ -23,8 +23,11 @@ DOC_ALLOWED_ENV="local test alpha beta prod"
 
 ### check winpty usage ()
 WINPTY_CMD=$(which winpty 2>/dev/null || true)
-if [ "$WINPTY_CMD" ]; then
-	DOCKER_COMPOSE_CMD="$WINPTY_CMD $DOCKER_COMPOSE_CMD"
+## set globaly if DOC_USE_WINPTY is set
+if [ -n "${DOC_USE_WINPTY+set}" ]; then
+	if [ "$WINPTY_CMD" ]; then
+		DOCKER_COMPOSE_CMD="$WINPTY_CMD $DOCKER_COMPOSE_CMD"
+	fi
 fi
 
 showhelp() {
@@ -474,11 +477,18 @@ initConfigurationFiles() {
 # Execute a docker compose command with the given environment, config files and credentials.
 ##
 dockerComposeCmd() {
+	DC_CMD="$DOCKER_COMPOSE_CMD"
+	### check winpty usage. on newer windows docker versions the winpty is only needet for bash exec
+	if [[ "$@" =~ ^exec.*bash$ ]] && [ "$WINPTY_CMD" ] && [ ! -n "${DOC_USE_WINPTY+set}" ] ; then
+		DC_CMD="$WINPTY_CMD $DOCKER_COMPOSE_CMD"
+	fi
 	if [ -f ${DOCKER_COMPOSE_CRED_FILE} ]; then
-		eval "${DOCKER_COMPOSE_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
+#		echo "'${DC_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} -f docker-compose.${ENVIRONMENT}.yml' -f ${DOCKER_COMPOSE_CRED_FILE} $@"
+		eval "${DC_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
 			-f docker-compose.${ENVIRONMENT}.yml" -f ${DOCKER_COMPOSE_CRED_FILE} $@
 	else
-		eval "${DOCKER_COMPOSE_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
+#		echo "'${DC_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} -f docker-compose.${ENVIRONMENT}.yml' $@"
+		eval "${DC_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
 			-f docker-compose.${ENVIRONMENT}.yml" $@
 	fi
 }
