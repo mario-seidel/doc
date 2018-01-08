@@ -35,6 +35,13 @@ showhelp() {
 	out "doc $VERSION"
 	out "================================================================================"
 	out "Commands:"
+	out "  cmd [environment] [docker-compose-options] [COMMAND] [ARGS...]"
+	out "        executes a docker-compose command"
+	out "        including the -p argument with the enviroment,"
+	out "        and the -f argument with all the docker-compose.yml files."
+	out "        Example: 'doc cmd prod logs web | grep ERR'"
+	out "  do [environment] [docker-compose-options] [COMMAND] [ARGS...]"
+	out "        currently only an alias for 'doc cmd'"
 	out "  build [environment]"
 	out "        building an image with given environment."
 	out "        default is local if none given."
@@ -329,6 +336,24 @@ dockerexec() {
 	fi
 }
 
+##
+# executes a docker-compose command
+# including the -p argument with the enviroment,
+# and the -f argument with all the docker-compose.yml files.
+# Example:
+#     'doc cmd pause'
+#     'doc cmd prod logs web | grep ERR'
+##
+dockercmd() {
+	initEnvironment "$1"
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
+		shift;
+	fi
+
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+	dockerComposeCmd $@
+}
+
 initproject() {
 	### only for backward compatibility START
 	if [ -z "$1" ]; then
@@ -479,13 +504,13 @@ initConfigurationFiles() {
 dockerComposeCmd() {
 	DC_CMD="$DOCKER_COMPOSE_CMD"
 	### check winpty usage. on newer windows docker versions the winpty is only needet for bash exec
-	if [[ "$@" =~ ^exec.*bash$ ]] && [ "$WINPTY_CMD" ] && [ ! -n "${DOC_USE_WINPTY+set}" ] ; then
+	if [[ "$@" =~ (^exec.*bash$) ]] && [ "$WINPTY_CMD" ] && [ ! -n "${DOC_USE_WINPTY+set}" ] ; then
 		DC_CMD="$WINPTY_CMD $DOCKER_COMPOSE_CMD"
 	fi
 	if [ -f ${DOCKER_COMPOSE_CRED_FILE} ]; then
 #		echo "'${DC_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} -f docker-compose.${ENVIRONMENT}.yml' -f ${DOCKER_COMPOSE_CRED_FILE} $@"
 		eval "${DC_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
-			-f docker-compose.${ENVIRONMENT}.yml" -f ${DOCKER_COMPOSE_CRED_FILE} $@
+			-f docker-compose.${ENVIRONMENT}.yml -f ${DOCKER_COMPOSE_CRED_FILE}" $@
 	else
 #		echo "'${DC_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} -f docker-compose.${ENVIRONMENT}.yml' $@"
 		eval "${DC_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} \
@@ -594,6 +619,8 @@ fi
 
 ### Main
 case "$1" in
+	"do") ;&
+	"cmd") shift; dockercmd $@ ;;
 	"build") out "building image"; shift; dockerbuild $@ ;;
 	"tag") out "build and tag"; buildandtag $2 $(get_current_version $2) ;;
 	"up") out "docker up"; dockerup "$2" ;;
