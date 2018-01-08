@@ -12,7 +12,8 @@ DOCKER_COMPOSE_CRED_FILE="docker-compose.credentials.yml"
 DOC_DOCKERFILE_PROD="./dockerfiles/Dockerfile-prod"
 DOC_DOCKERFILE_FOLDER="./dockerfiles"
 DOC_VHOST_CONFIG_FOLDER="./config"
-DOC_SETTINGS="./config/settings.sh"
+DOC_SETTINGS_FILE=$([ -f ./settings.sh ] && echo "./settings.sh" 2>/dev/null || true)
+DOC_SETTINGS=${DOC_SETTINGS_FILE:-./config/settings.sh}
 SOURCE_DIR="./sources"
 NGINX_CONTAINER="nginx"
 ENVIRONMENT=
@@ -356,6 +357,12 @@ initproject() {
 	if [ -f "scripts/init.sh" ]; then
 		info "run init.sh"
 		scripts/init.sh
+	fi
+
+    #initialize all deps before start building
+	if [ -f "web/scripts/init.sh" ]; then
+		info "run init.sh"
+		web/scripts/init.sh
 	fi
 
 	info "start building project"
