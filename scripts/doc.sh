@@ -507,7 +507,7 @@ dockerComposeCmd() {
 		DC_CMD="$WINPTY_CMD $DOCKER_COMPOSE_CMD"
 	fi
 	### build the command with enviroment and docker-compose.yml files
-	DC_CMD="${DC_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} -f docker-compose.${ENVIRONMENT}.yml"
+	DC_CMD="'${DC_CMD}' -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} -f docker-compose.${ENVIRONMENT}.yml"
 	### add optionaly credential yml file
 	if [ -f ${DOCKER_COMPOSE_CRED_FILE} ]; then
 		DC_CMD="${DC_CMD} -f ${DOCKER_COMPOSE_CRED_FILE}"
