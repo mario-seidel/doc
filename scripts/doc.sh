@@ -501,13 +501,13 @@ initConfigurationFiles() {
 # Execute a docker compose command with the given environment, config files and credentials.
 ##
 dockerComposeCmd() {
-	DC_CMD="$DOCKER_COMPOSE_CMD"
+	DC_CMD="'$DOCKER_COMPOSE_CMD'"
 	### check winpty usage. on newer windows docker versions the winpty is only needet for some commands like exec bash
 	if [[ "$@" =~ (^exec.*bash$) ]] && [ "$WINPTY_CMD" ] && [ ! -n "${DOC_USE_WINPTY+set}" ] ; then
 		DC_CMD="$WINPTY_CMD $DOCKER_COMPOSE_CMD"
 	fi
 	### build the command with enviroment and docker-compose.yml files
-	DC_CMD="'${DC_CMD}' -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} -f docker-compose.${ENVIRONMENT}.yml"
+	DC_CMD="${DC_CMD} -p ${DOC_PROJECT_NAME}_${ENVIRONMENT} -f ${DOCKER_COMPOSE_FILE} -f docker-compose.${ENVIRONMENT}.yml"
 	### add optionaly credential yml file
 	if [ -f ${DOCKER_COMPOSE_CRED_FILE} ]; then
 		DC_CMD="${DC_CMD} -f ${DOCKER_COMPOSE_CRED_FILE}"
