@@ -381,12 +381,21 @@ initproject() {
 	if [ -f "scripts/init.sh" ]; then
 		info "run init.sh"
 		scripts/init.sh
+		if [ $? -eq 0 ]; then
+	        	echo "run scripts/init.sh failed: $?"
+	        	exit;
+	    	fi
 	fi
 
 	### initialize all deps before start building
 	if [ -f "web/scripts/init.sh" ]; then
 		info "run init.sh"
 		web/scripts/init.sh
+
+		if [ $? -eq 0 ]; then
+	        	echo "run web/scripts/init.sh failed: $?"
+	        	exit;
+	    	fi
 	fi
 
 	initEnvironment "$3"
