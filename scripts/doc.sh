@@ -381,7 +381,7 @@ initproject() {
 	if [ -f "scripts/init.sh" ]; then
 		info "run init.sh"
 		scripts/init.sh
-		if [ $? -eq 0 ]; then
+		if [ $? -ne 0 ]; then
 	        	echo "run scripts/init.sh failed: $?"
 	        	exit;
 	    	fi
@@ -392,7 +392,7 @@ initproject() {
 		info "run init.sh"
 		web/scripts/init.sh
 
-		if [ $? -eq 0 ]; then
+		if [ $? -ne 0 ]; then
 	        	echo "run web/scripts/init.sh failed: $?"
 	        	exit;
 	    	fi
