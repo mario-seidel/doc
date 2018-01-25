@@ -398,10 +398,8 @@ initproject() {
 	    	fi
 	fi
 
-	initEnvironment "$3"
-
 	info "start building project"
-	dockerup $ENVIRONMENT &&
+	dockerup $3 &&
 		info "===========\n$DOC_FULL_NAME was built successfully\n\n"
 
 	if [ -n ${NGINX_CONTAINER} ]; then
