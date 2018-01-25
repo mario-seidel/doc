@@ -64,13 +64,13 @@ showhelp() {
 	out "        for given environment (first argument, default is local)"
 	out "  ps"
 	out "        show process list of all containers"
-	out "  exec [[environment] service] COMMAND"
+	out "  exec [environment] [service] COMMAND"
 	out "        executes a COMMAND in a container service with user privileges"
-	out "  suexec [[environment] service] COMMAND"
+	out "  suexec [environment] [service] COMMAND"
 	out "        executes a COMMAND in a container service with root privileges"
 	out "  deploy"
 	out "        build, tag and deploy to remote repo"
-	out "  init [projectname] [git url] [typo3 Version]"
+	out "  init [projectname] [git url] [environment]"
 	out "        initialize a new project"
 	out "  logs [environment] [nginx|web]"
 	out "        show log output of all or specific container [web, typo3-db, nginx] with given environment."
@@ -356,7 +356,6 @@ initproject() {
 	if [ -z "$1" ]; then
 		DOC_PROJECT_NAME=$1
 		GIT_REPO=$2
-		DOC_WEBSERVERIMAGE_VERSION=${3:-7.1}
 	fi
 	### only for backward compatibility START
 
@@ -390,8 +389,10 @@ initproject() {
 		web/scripts/init.sh
 	fi
 
+	initEnvironment "$3"
+
 	info "start building project"
-	dockerup local &&
+	dockerup $ENVIRONMENT &&
 		info "===========\n$DOC_FULL_NAME was built successfully\n\n"
 
 	if [ -n ${NGINX_CONTAINER} ]; then
