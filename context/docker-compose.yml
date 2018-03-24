@@ -1,0 +1,67 @@
+version: '2'
+services:
+
+### ######### ###
+### WEBSERVER ###
+### ######### ###
+
+    web:
+        image: dmk/my-awesome-project:1.0
+#        links:
+#            - typo3-db
+        volumes:
+            - logvolume01:/var/log
+        environment:
+            HOST_USER: 'docker'
+            HOST_GROUP: 'docker'
+            DMK_APP_ENV: 'PRODUCTION'
+            TYPO3_CONTEXT: 'Production/Live'
+
+### ##### ###
+### CACHE ###
+### ##### ###
+
+#    cache:
+#        build:
+#            context: .
+#        container_name: varnish
+#        depends_on:
+#            - web
+#        volumes:
+#            - ./config/varnish/default.vcl:/etc/varnish/default.vcl
+#            - ./config/varnish/varnish.secret:/etc/varnish/secret
+#        environment:
+#            - CACHE_SIZE=256M
+##        ports:
+##            - "80:80"
+##            - "6082:6082"
+#        links:
+#            - web
+
+### ######## ###
+### DATABASE ###
+### ######## ###
+
+#    typo3-db:
+#        # mariadb > 5 gibt fehler mit typo3 da recursive ein reserviertes wort ist
+#        # https://github.com/helhum/TYPO3-Distribution/issues/7
+#        image: mariadb:5
+#        command: mysqld --character-set-server=utf8 --collation-server=utf8_unicode_ci --init-connect='SET NAMES UTF8;' --innodb-flush-log-at-trx-commit=0
+#        volumes:
+#            - /var/lib/mysql
+
+
+### ####### ###
+### ADMINER ###
+### ####### ###
+
+#    adminer:
+#        image: adminer
+#        ports:
+#          - 8080:8080
+#        links:
+#            - typo3-db
+
+volumes:
+  logvolume01: {}
+

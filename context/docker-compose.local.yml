@@ -1,0 +1,134 @@
+version: '2'
+services:
+
+### ######### ###
+### WEBSERVER ###
+### ######### ###
+
+    web:
+        build:
+            context: .
+            dockerfile: ./web/dockerfiles/dockerfile-local
+        volumes:
+            - ./web/mounts:/var/www/html/
+            - ./web/config/php/php.ini:/usr/local/etc/php/php.ini:ro
+            - ./web/config/php/typo3.ini:/usr/local/etc/php/conf.d/typo3.ini:ro
+            - ./web/config/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
+            - ./web/config/apache/apache-vhost.conf:/etc/apache2/sites-enabled/000-default.conf
+            - ./general/tools:/home/docker/tools
+            - ./web/scripts/git-tag-ext:/usr/bin/git-tag-ext:ro
+            - ./web/scripts/git-tag-core:/usr/bin/git-tag-core:ro
+            - ./web/scripts/entrypoint.sh:/entrypoint.sh
+            - ./web/scripts/composer.sh:/usr/local/bin/composer:ro
+        environment:
+            SSH_AUTH_SOCK: /ssh-agent
+            DMK_APP_ENV: 'LOCAL'
+            TYPO3_CONTEXT: 'Development'
+            VIRTUAL_HOST: my-awesome-project.dmkdev,static.my-awesome-project.dmkdev,beta.my-awesome-project.dmkdev
+        hostname: my-awesome-host
+        networks:
+            default:
+              aliases:
+                - static.my-awesome-project.dmkdev
+                - beta.my-awesome-project.dmkdev
+        extra_hosts:
+            - "mysql.db.dmk:192.168.2.54"
+            - "solr6.db.dmk:192.168.2.112"
+            - "gandalf.dmk:192.168.2.214"
+
+
+
+### ##### ###
+### CACHE ###
+### ##### ###
+
+### Enable if required and remove the VIRTUAL_HOST and network.defailt.aliases section from web container!
+
+#    cache:
+#        build:
+#            context: .
+#            dockerfile: varnish/dockerfiles/dockerfile-varnish
+#        environment:
+#            VIRTUAL_HOST: my-awesome-project.dev,static.my-awesome-project.dev,beta.my-awesome-project.dev
+#        networks:
+#            default:
+#              aliases:
+#                  - my-awesome-project.dev
+#                  - static.my-awesome-project.dev
+#                  - beta.my-awesome-project.dev
+
+
+### ########### ###
+### GULP BUILDs ###
+### ########### ###
+
+#    gulp_build: &gulp
+#        build:
+#            context: .
+#            dockerfile: ./gulp/dockerfiles/dockerfile-gulp
+#        image: dmk/gulp
+#        depends_on:
+#            - web
+#        volumes:
+#            - ./web/mounts/project/htdocs/typo3conf/ext/slfmtemplate/:/src
+#            - ./scripts/entrygulp.sh:/entry.sh
+#        command: >
+#            install development
+#    gulp_dev:
+#        <<: *gulp
+#        depends_on:
+#            - gulp_build
+#        command: >
+#             watch
+
+### ######### ###
+### Middleman ###
+### ######### ###
+
+
+    # Kann erst aktiviert werden, wenn mktegutfe zur Verfügung steht
+    #middleman:
+    #    build:
+    #        context: .
+    #        dockerfile: middleman/dockerfiles/dockerfile-local
+    #    volumes:
+    #        - ./web/mounts/project/...:/usr/app/
+
+### ######### ###
+### Piwik     ###
+### ######### ###
+    # piwik:
+        # build:
+            # context: .
+            # dockerfile: ./piwik/dockerfiles/dockerfile-local
+        # volumes:
+            # - ./piwik/mounts/project/:/var/www/html/
+            # - ./piwik/config/php/php.ini:/usr/local/etc/php/php.ini:ro
+            # - ./general/config/apache/apache-vhost.conf:/etc/apache2/sites-enabled/000-default.conf
+            # - ./piwik/config/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
+        # environment:
+            # VIRTUAL_HOST: piwik.localhost
+        # networks:
+            # default:
+                # aliases:
+                    # - piwik.localhost
+
+### #### ###
+### SOLR ###
+### #### ###
+
+#    solr:
+#        image: solr:6.4-slim
+#        ports:
+#            - '8983:8983'
+#        volumes:
+#            - './solr/mounts/maincore/:/opt/solr/server/solr/mycores/maincore'
+#            - './web/mounts/htdocs/typo3conf/ext/slfmbase/Configuration/Solr/conf/:/opt/solr/server/solr/mycores/maincore/conf'
+#        entrypoint:
+#            - docker-entrypoint.sh
+#            - solr-precreate
+
+networks:
+  default:
+    external:
+      name: docker_default

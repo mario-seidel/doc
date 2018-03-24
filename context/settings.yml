@@ -1,0 +1,13 @@
+general:
+  username: dmk
+  project_name: my-awesome-project
+#  DOC_FULL_NAME: dmk/my-awesome-project
+#  DOC_LOCAL_DOMAIN: dmkdev
+#  DOC_WEBSERVERIMAGE_VERSION: 7.1
+#  GIT_REPO: "git@repo.dmknet.de:my-awesome-project/typo3-webroot.git"
+#  HOST_USER: "docker"
+#  HOST_USERID: 1000
+#  HOST_GROUP: "docker"
+#  HOST_GROUPID: 1000
+#  DOC_DOCKERFILE_TYPO3: "./web/dockerfiles/dockerfile-webserver"
+#  APP_DIR: "./web/mounts"
