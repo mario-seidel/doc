@@ -528,7 +528,7 @@ dockerComposeCmd() {
 		echo "${DC_CMD}" $@
 		echo
 	fi
-	
+
 	### finaly execute the command
 	eval "${DC_CMD}" $@
 }
@@ -600,7 +600,7 @@ case "$1" in
 	"cmd") shift; dockercmd $@ ;;
 	"build") out "building image"; shift; dockerbuild $@ ;;
 	"tag") out "build and tag"; buildandtag $2 $(get_current_version $2) ;;
-	"up") out "docker up"; dockerup "$2" ;;
+	"up") out "docker up"; shift; dockerup $@ ;;
 	"down") out "docker down"; shift; dockerdown $@ ;;
 	"stop") out "docker stop"; shift; dockerstop $@ ;;
 	"status") out "container status:"; shift; dockerstatus $@ ;;
