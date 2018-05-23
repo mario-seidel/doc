@@ -59,6 +59,8 @@ showhelp() {
 	out "        stop container and start all or one container service."
 	out "  status"
 	out "        shows status informations about current web container"
+	out "  config [environment]"
+	out "        shows and validates the config for a given environment"
 	out "  in"
 	out "        start bash in given service (second argument, default is web)"
 	out "        for given environment (first argument, default is local)"
@@ -262,6 +264,19 @@ dockerstatus() {
 
 	URL=$(docker inspect -f '{{range $index, $value := .Config.Env}}{{if eq (index (split $value "=") 0) "VIRTUAL_HOST" }}{{range $i, $part := (split $value "=")}}{{if gt $i 1}}{{print "="}}{{end}}{{if gt $i 0}}{{print $part}}{{end}}{{end}}{{end}}{{end}}' ${LOCAL_CONTAINER})
 	info "URL: http://$URL"
+}
+
+##
+# shows and validates the config for a given environment
+##
+dockerconfig() {
+	initEnvironment "$1"
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
+		shift;
+	fi
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+
+	dockerComposeCmd config $@
 }
 
 dockerin() {
@@ -604,6 +619,7 @@ case "$1" in
 	"down") out "docker down"; shift; dockerdown $@ ;;
 	"stop") out "docker stop"; shift; dockerstop $@ ;;
 	"status") out "container status:"; shift; dockerstatus $@ ;;
+	"config") out "docker config:"; shift; dockerconfig $@ ;;
 	"restart") out "docker restart"; shift; dockerstop $@ && dockerup $@ ;;
 	"rebuild") out "docker rebuild"; shift; dockerdown --rmi all && dockerup --build ;;
 	"status") out "container status:"; shift; dockerstatus ;;
