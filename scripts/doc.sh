@@ -286,12 +286,13 @@ dockerin() {
 	fi
 
 	SERVICE=$1
+	shift;
 	if [ -z "$SERVICE" ]; then
 		SERVICE="web"
 	fi
 
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
-	dockerComposeCmd exec --user "$HOST_USER" "$SERVICE" bash
+	dockerComposeCmd exec --user "$HOST_USER" "$SERVICE" bash $@
 }
 
 ##
