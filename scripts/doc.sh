@@ -286,9 +286,11 @@ dockerin() {
 	fi
 
 	SERVICE=$1
-	shift;
-	if [ -z "$SERVICE" ]; then
+	if [ -z "$SERVICE" ]; 
+	then
 		SERVICE="web"
+	else
+		shift;
 	fi
 
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
