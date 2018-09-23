@@ -13,6 +13,8 @@ type DocConfig struct {
 		Username    string `yaml:"username"`
 		ProjectName string `yaml:"project_name"`
 	}
+	DefaultEnvironment     string   `yaml:"defaultEnvironment"`
+	AdditionalEnvironments []string `yaml:"additionalEnvironments"`
 }
 
 func loadConfig(context string) *DocConfig {
@@ -30,7 +32,7 @@ func loadConfig(context string) *DocConfig {
 	if err != nil {
 		log.Fatalf("error parsing settings: %s", err.Error())
 	}
-
+fmt.Print(config)
 	return &config
 }
 

@@ -5,28 +5,47 @@ import (
 	"log"
 	"os/exec"
 	"os"
+	"errors"
+	"path"
 )
 
 const dockerComposeCmd = "docker-compose"
+const dockerComposeFile="docker-compose.yml"
+const dockerComposeFileSchema="docker-compose.%s.yml"
+var allowedEnvironments = [...]string{"local", "test", "staging", "beta", "live"}
+var defaultComposeFileEnvs = [...]string{"", "local", "credentials"}
 
 type DocApp struct {
 	context string
+	env string
 	config  *DocConfig
 }
 
-func newDocApp(context string) *DocApp {
-	if e, _ := exists(context); e == false {
-		log.Panicf("The given context directory '%s' does not exist.", context)
-	}
-
+func newDocApp(context, env string) *DocApp {
 	config := loadConfig(context)
 
-	return &DocApp{context, config}
+	if env == "" && config.DefaultEnvironment != "" {
+		env = config.DefaultEnvironment
+	}
+
+	if err := initEnvironment(context); err != nil {
+		log.Fatal(err)
+	}
+
+	return &DocApp{context, env, config}
 }
 
+// Run a command with the given environment
+// doc up local -> docker-compose up -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.credentials.yml
 func (app *DocApp) Run(command string, parameters ...string) {
-	if !testCommandExists(dockerComposeCmd) {
-		log.Panicf("%s is not installed or not runable. check your executable.", dockerComposeCmd)
+	for _, filePath := range app.getDockerComposeFiles() {
+		if exist, _ := pathExists(filePath); exist == false {
+			log.Fatal("Error compose file does not exist: ", filePath)
+		}
+	}
+
+	if err := checkComposerFileExistsByEnv(""); err != nil {
+		log.Fatal(err)
 	}
 
 	parameters = append(parameters, command)
@@ -42,15 +61,60 @@ func (app *DocApp) Run(command string, parameters ...string) {
 	fmt.Printf("%s\n", stdoutStderr)
 }
 
-//test if the command exists and is executable
+// Returns all docker-compose files for the current environment
+func (app *DocApp) getDockerComposeFiles() []string {
+	var composeFiles []string
+	var dockerComposePath string
+
+	additionalEnv := append([]string{app.env}, app.config.AdditionalEnvironments...)
+	envs := append([]string{""}, additionalEnv...)
+
+	for _, envFile := range envs {
+		if envFile == "" {
+			dockerComposePath = path.Join(app.context, dockerComposeFile)
+		} else {
+			dockerComposePath = path.Join(app.context, fmt.Sprintf(dockerComposeFileSchema, envFile))
+		}
+		composeFiles = append(composeFiles, dockerComposePath)
+	}
+
+	return composeFiles
+}
+
+// initEnvironment test if the docker-compose command and the given context exists
+func initEnvironment(context string) error {
+	if !testCommandExists(dockerComposeCmd) {
+		log.Fatalf("%s is not installed or not runable. check your executable.", dockerComposeCmd)
+	}
+
+	if e, _ := pathExists(context); e == false {
+		log.Fatalf("The given context directory '%s' does not exist.", context)
+	}
+
+	return nil
+}
+
+// checkComposerFileExitsByEnv test is docker-compose.yml and docker-compose.[env].yml exists
+func checkComposerFileExistsByEnv(env string) error {
+
+	var dockerComposePath string
+
+	if exist, _  := pathExists(dockerComposePath); exist == false {
+		return errors.New(fmt.Sprintf("%s does not exist!", dockerComposePath))
+	}
+
+	return nil
+}
+
+// test if the command pathExists and is executable
 func testCommandExists(command string) bool {
 	_, err := exec.LookPath(command)
 
 	return err == nil
 }
 
-// exists returns whether the given file or directory exists or not
-func exists(path string) (bool, error) {
+// pathExists returns whether the given file or directory exists or not
+func pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil { return true, nil }
 	if os.IsNotExist(err) { return false, nil }

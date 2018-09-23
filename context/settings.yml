@@ -1,6 +1,11 @@
 general:
   username: dmk
   project_name: my-awesome-project
+
+defaultEnvironment: 'local'
+additionalEnvironments:
+  - 'credentials'
+
 #  DOC_FULL_NAME: dmk/my-awesome-project
 #  DOC_LOCAL_DOMAIN: dmkdev
 #  DOC_WEBSERVERIMAGE_VERSION: 7.1

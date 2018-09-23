@@ -2,6 +2,7 @@ package doc
 
 import (
 	"testing"
+	"reflect"
 )
 
 func TestDocApp_TestWrongCommand(t *testing.T) {
@@ -14,18 +15,48 @@ func TestDocApp_TestWrongCommand(t *testing.T) {
 
 func TestDocApp_WrongContext(t *testing.T) {
 	assertPanic(t, func() {
-		newDocApp("./contextdoesnotexsits")
+		newDocApp("./contextdoesnotexsits", "local")
 	})
 }
 
 func TestCreateApp(t *testing.T) {
-	app := newDocApp("./context")
+	app := newDocApp("./context", "local")
 
 	if app.config.General.Username != "dmk" {
 		t.Errorf("app config not loaded")
 	}
 
 	app.Run("ps")
+}
+
+func TestDocApp_GetComposeFiles(t *testing.T) {
+	app := newDocApp("./context", "local")
+
+	expected := []string{
+		"context/docker-compose.yml",
+		"context/docker-compose.local.yml",
+		"context/docker-compose.credentials.yml",
+	}
+	files := app.getDockerComposeFiles()
+
+	if reflect.DeepEqual(expected, files) == false {
+		t.Errorf("%v does not equal %v", files, expected)
+	}
+}
+
+func TestDocApp_GetTestComposeFiles(t *testing.T) {
+	app := newDocApp("./context", "test")
+
+	expected := []string{
+		"context/docker-compose.yml",
+		"context/docker-compose.test.yml",
+		"context/docker-compose.credentials.yml",
+	}
+	files := app.getDockerComposeFiles()
+
+	if reflect.DeepEqual(expected, files) == false {
+		t.Errorf("%v does not equal %v", files, expected)
+	}
 }
 
 func assertPanic(t *testing.T, f func()) {
