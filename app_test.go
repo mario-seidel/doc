@@ -1,8 +1,8 @@
 package doc
 
 import (
-	"testing"
 	"reflect"
+	"testing"
 )
 
 func TestDocApp_TestWrongCommand(t *testing.T) {

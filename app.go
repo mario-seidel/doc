@@ -1,23 +1,24 @@
 package doc
 
 import (
+	"errors"
 	"fmt"
 	"log"
-	"os/exec"
 	"os"
-	"errors"
+	"os/exec"
 	"path"
 )
 
 const dockerComposeCmd = "docker-compose"
-const dockerComposeFile="docker-compose.yml"
-const dockerComposeFileSchema="docker-compose.%s.yml"
+const dockerComposeFile = "docker-compose.yml"
+const dockerComposeFileSchema = "docker-compose.%s.yml"
+
 var allowedEnvironments = [...]string{"local", "test", "staging", "beta", "live"}
 var defaultComposeFileEnvs = [...]string{"", "local", "credentials"}
 
 type DocApp struct {
 	context string
-	env string
+	env     string
 	config  *DocConfig
 }
 
@@ -38,11 +39,8 @@ func newDocApp(context, env string) *DocApp {
 // Run a command with the given environment
 // doc up local -> docker-compose up -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.credentials.yml
 func (app *DocApp) Run(command string, parameters ...string) {
-	for _, filePath := range app.getDockerComposeFiles() {
-		if exist, _ := pathExists(filePath); exist == false {
-			log.Fatal("Error compose file does not exist: ", filePath)
-		}
-	}
+
+	checkComposerFiles(app.getDockerComposeFiles())
 
 	if err := checkComposerFileExistsByEnv(""); err != nil {
 		log.Fatal(err)
@@ -59,6 +57,14 @@ func (app *DocApp) Run(command string, parameters ...string) {
 		log.Fatalf("%s: %s", err, stdoutStderr)
 	}
 	fmt.Printf("%s\n", stdoutStderr)
+}
+
+func checkComposerFiles(filePaths []string) {
+	for _, filePath := range filePaths {
+		if exist, _ := pathExists(filePath); exist == false {
+			log.Fatal("Error compose file does not exist: ", filePath)
+		}
+	}
 }
 
 // Returns all docker-compose files for the current environment
@@ -99,7 +105,7 @@ func checkComposerFileExistsByEnv(env string) error {
 
 	var dockerComposePath string
 
-	if exist, _  := pathExists(dockerComposePath); exist == false {
+	if exist, _ := pathExists(dockerComposePath); exist == false {
 		return errors.New(fmt.Sprintf("%s does not exist!", dockerComposePath))
 	}
 
@@ -116,7 +122,12 @@ func testCommandExists(command string) bool {
 // pathExists returns whether the given file or directory exists or not
 func pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
-	if err == nil { return true, nil }
-	if os.IsNotExist(err) { return false, nil }
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+
 	return true, err
 }
