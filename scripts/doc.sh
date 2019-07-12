@@ -52,6 +52,9 @@ showhelp() {
 	out "        default is local if none given."
 	out "  down"
 	out "        stop all containers an remove them"
+    out "  run [environment] [service] [command]"
+	out "        run docker-compose service with given command in a given environment."
+	out "        default is local if none given."
 	out "  stop [environment]"
 	out "        stop container with given environment."
 	out "        default is local if none given."
@@ -180,6 +183,16 @@ dockerup() {
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 
 	dockerComposeCmd up -d $@
+}
+
+dockerrun() {
+	initEnvironment "$1"
+	if [ "$IS_DEFAULT_ENVIRONMENT" -eq 0 ]; then
+		shift;
+	fi
+	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
+
+	dockerComposeCmd run $@
 }
 
 dockerdown() {
@@ -620,6 +633,7 @@ case "$1" in
 	"tag") out "build and tag"; buildandtag $2 $(get_current_version $2) ;;
 	"up") out "docker up"; shift; dockerup $@ ;;
 	"down") out "docker down"; shift; dockerdown $@ ;;
+	"run") out "docker run"; shift; dockerrun $@ ;;
 	"stop") out "docker stop"; shift; dockerstop $@ ;;
 	"status") out "container status:"; shift; dockerstatus $@ ;;
 	"config") out "docker config:"; shift; dockerconfig $@ ;;
