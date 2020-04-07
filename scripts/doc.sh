@@ -192,7 +192,7 @@ dockerrun() {
 	fi
 	checkIfComposeFilesExistByEnvironment "$ENVIRONMENT"
 
-	dockerComposeCmd run $@
+	dockerComposeCmd run --rm $@
 }
 
 dockerdown() {
